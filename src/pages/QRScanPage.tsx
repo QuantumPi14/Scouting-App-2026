@@ -22,7 +22,7 @@ function mergeConfigParts(parts: ConfigPayload[]): ConfigPayload {
     const teamNumbers = list.flatMap((c) => c.teamNumbers)
     const teamNames: Record<number, string> = {}
     for (const c of list) Object.assign(teamNames, c.teamNames)
-    return { id: first.id, name: first.name, teamNumbers, teamNames }
+    return { id, name: first.name, teamNumbers, teamNames }
   })
   return {
     v: 1,
