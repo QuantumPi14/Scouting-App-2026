@@ -92,9 +92,16 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
   }
 
   const autoPathImages = submissions.map((s) => s.autoPathImageData).filter((d): d is string => nonEmpty(d ?? ''))
+  const hasPathDataContent = (item: { pathData?: AutoPathData | null }) => {
+    const d = item.pathData
+    if (!d) return false
+    const markers = Array.isArray(d.markers) ? d.markers : []
+    const path = Array.isArray(d.path) ? d.path : []
+    return markers.length > 0 || path.length > 0
+  }
   const autoPathItems: { image?: string; pathData?: AutoPathData }[] = submissions
     .map((s) => ({ image: s.autoPathImageData, pathData: s.autoPathData }))
-    .filter((item) => nonEmpty(item.image ?? '') || (item.pathData && (item.pathData.markers.length > 0 || item.pathData.path.length > 0)))
+    .filter((item) => nonEmpty(item.image ?? '') || hasPathDataContent(item))
 
   const notesByScout = submissions
     .filter((s) => nonEmpty(s.notes))

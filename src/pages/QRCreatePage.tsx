@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../context'
 import { db } from '../db'
 import { exportDataQR } from '../qr'
-import type { Competition } from '../types'
+import type { Competition, ScoutSubmission } from '../types'
 import styles from './QRCreatePage.module.css'
 
 export function QRCreatePage() {
@@ -13,6 +13,7 @@ export function QRCreatePage() {
   const [urls, setUrls] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pathDataMissingCount, setPathDataMissingCount] = useState(0)
 
   useEffect(() => {
     db.competitions.toArray().then((list) => {
@@ -26,9 +27,15 @@ export function QRCreatePage() {
     setLoading(true)
     setUrls([])
     setError(null)
+    setPathDataMissingCount(0)
     try {
       const list = await exportDataQR(selectedCompId || undefined)
       setUrls(list)
+      const subs = selectedCompId
+        ? await db.submissions.where('competitionId').equals(selectedCompId).toArray() as ScoutSubmission[]
+        : await db.submissions.toArray() as ScoutSubmission[]
+      const missing = subs.filter((s) => s.autoPathImageData && !(s.autoPathData && (s.autoPathData.markers?.length || s.autoPathData.path?.length))).length
+      setPathDataMissingCount(missing)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       const friendly = /too (big|large|much)/i.test(message)
@@ -44,7 +51,7 @@ export function QRCreatePage() {
   return (
     <div className={styles.page}>
       <h1>Create QR</h1>
-      <p>Export scout data as QR code(s). Others can scan to merge data. Auto path images are not included (they’re too large for QR); only form data is shared.</p>
+      <p>Export scout data as QR code(s). Others can scan to merge data. Auto paths are sent as coordinates (not images) so they show on other devices. If you drew paths before updating the app, re-save each path in Add data so coordinates are stored. Images are not in the QR (they’re too large for QR); only form data is shared.</p>
       <div className={styles.form}>
         <label>Competition</label>
         <select value={selectedCompId} onChange={(e) => setSelectedCompId(e.target.value)}>
@@ -58,6 +65,11 @@ export function QRCreatePage() {
         </button>
         {error && <p className={styles.error}>Failed to generate QR: {error}</p>}
       </div>
+      {pathDataMissingCount > 0 && (
+        <p className={styles.warning}>
+          {pathDataMissingCount} submission(s) have an auto path image but no path coordinates, so the path will not appear when scanned on another device. Open each team, go to Add data, then clear and re-save the auto path so coordinates are included.
+        </p>
+      )}
       {urls.length > 0 && (
         <div className={styles.qrList}>
           {urls.length > 1 && <p>Scan in order (1 of {urls.length})</p>}

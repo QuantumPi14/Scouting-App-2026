@@ -225,6 +225,14 @@ export async function importConfig(payload: ConfigPayload): Promise<void> {
   }
 }
 
+function hasPathData(sub: { autoPathData?: unknown }): boolean {
+  const d = sub.autoPathData
+  if (!d || typeof d !== 'object') return false
+  const m = (d as { markers?: unknown[] }).markers
+  const p = (d as { path?: unknown[] }).path
+  return (Array.isArray(m) && m.length > 0) || (Array.isArray(p) && p.length > 0)
+}
+
 export async function importData(payload: DataPayload): Promise<void> {
   for (const sub of payload.submissions || []) {
     if (!sub.competitionId || !Number.isFinite(sub.teamNumber) || !sub.scoutName || !sub.createdAt) continue
@@ -232,7 +240,13 @@ export async function importData(payload: DataPayload): Promise<void> {
       .where('[competitionId+teamNumber+createdAt]')
       .equals([sub.competitionId, sub.teamNumber, sub.createdAt])
       .first()
-    if (existing) continue
+    if (existing) {
+      // Merge in path data from QR so re-scan or sync from another device shows auto path
+      if (hasPathData(sub) && (existing as ScoutSubmission).autoPathData !== sub.autoPathData) {
+        await db.submissions.update(existing.id, { autoPathData: sub.autoPathData })
+      }
+      continue
+    }
     const { id, ...rest } = sub as ScoutSubmission & { id?: number }
     await db.submissions.add(rest as ScoutSubmission)
   }
