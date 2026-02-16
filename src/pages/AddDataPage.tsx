@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { db } from '../db'
-import type { Competition, ScoutSubmission } from '../types'
+import type { AutoPathData, Competition, ScoutSubmission } from '../types'
 import { AutoPathEditor } from '../components/AutoPathEditor'
 import styles from './AddDataPage.module.css'
 
@@ -40,6 +40,7 @@ export function AddDataPage() {
   const [shotAccuracyPercent, setShotAccuracyPercent] = useState<number | ''>('')
   const [notes, setNotes] = useState('')
   const [autoPathImageData, setAutoPathImageData] = useState<string | undefined>(undefined)
+  const [autoPathData, setAutoPathData] = useState<AutoPathData | undefined>(undefined)
 
   useEffect(() => {
     if (!competitionId) return
@@ -87,6 +88,7 @@ export function AddDataPage() {
       shotAccuracyPercent: shotAccuracyPercent === '' ? undefined : Number(shotAccuracyPercent),
       notes: notes.trim() || undefined,
       autoPathImageData,
+      autoPathData,
     }
     await db.submissions.add(sub as ScoutSubmission & { id?: number })
     navigate('/')
@@ -105,7 +107,14 @@ export function AddDataPage() {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Add auto path</h2>
-        <AutoPathEditor onSave={setAutoPathImageData} savedImage={autoPathImageData} />
+        <AutoPathEditor
+          onSave={(img, pathData) => {
+            setAutoPathImageData(img)
+            setAutoPathData(pathData)
+          }}
+          savedImage={autoPathImageData}
+          savedPathData={autoPathData}
+        />
       </section>
 
       <section className={styles.section}>

@@ -1,0 +1,6 @@
+.canvas {
+  display: block;
+  border: 1px solid var(--umoja-border);
+  border-radius: 8px;
+  background: var(--umoja-surface);
+}

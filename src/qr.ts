@@ -121,7 +121,7 @@ export async function exportConfigQR(): Promise<string[]> {
   return urls
 }
 
-/** Strip large fields so payload fits in QR codes (max ~3KB). Auto path images are excluded. */
+/** Strip large fields so payload fits in QR codes. We keep autoPathData (coordinates) and drop autoPathImageData (base64 image). */
 function submissionsForQR(submissions: ScoutSubmission[]): ScoutSubmission[] {
   return submissions.map(({ autoPathImageData: _, ...rest }) => ({ ...rest }))
 }

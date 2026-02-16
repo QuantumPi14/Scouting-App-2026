@@ -37,7 +37,23 @@ export interface ScoutSubmission {
   shotAccuracyPercent?: number // 0, 10, 20, ..., 100
 
   notes?: string
-  autoPathImageData?: string // base64 PNG
+  autoPathImageData?: string // base64 PNG (not sent in QR; use autoPathData to sync)
+  /** Normalized 0–1 coordinates to recreate path + markers on the field template (included in QR). */
+  autoPathData?: AutoPathData
+}
+
+/** Stored marker: type, id, and normalized (0–1) position. Only markers on the field are stored. */
+export interface AutoPathMarkerStored {
+  type: 'start' | 'end' | 'climb' | 'shot'
+  id: string
+  x: number
+  y: number
+}
+
+/** Lightweight path data for sync/QR: markers on field + path points (all coordinates 0–1). */
+export interface AutoPathData {
+  markers: AutoPathMarkerStored[]
+  path: { x: number; y: number }[]
 }
 
 // Aggregated "average" view for a team (computed from submissions)
@@ -67,6 +83,8 @@ export interface TeamAggregate {
     shotAccuracyPercent: number | null
   }
   autoPathImages: string[]
+  /** One per submission that has an auto path (image and/or pathData). Enables replay from coordinates when no image. */
+  autoPathItems: { image?: string; pathData?: AutoPathData }[]
   notesByScout: { scoutDisplayName: string; notes: string }[]
 }
 

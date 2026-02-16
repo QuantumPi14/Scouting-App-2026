@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
+import type { AutoPathData } from '../types'
 import styles from './AutoPathEditor.module.css'
 
 const FIELD_IMAGE_SRC = `${(import.meta.env.BASE_URL || '/').replace(/\/?$/, '')}/2026-field.png`
@@ -25,7 +26,15 @@ const INITIAL_MARKERS: Marker[] = [
   { type: 'shot', x: 0.4, y: 0.9, onField: false, id: 'shot0' },
 ]
 
-export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string | undefined) => void; savedImage?: string }) {
+export function AutoPathEditor({
+  onSave,
+  savedImage,
+  savedPathData: _savedPathData,
+}: {
+  onSave: (imageData: string | undefined, pathData: AutoPathData | undefined) => void
+  savedImage?: string
+  savedPathData?: AutoPathData
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
@@ -43,7 +52,7 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
     setPath([])
     setMarkers([...INITIAL_MARKERS])
     setShotCount(1)
-    onSave(undefined)
+    onSave(undefined, undefined)
   }, [onSave])
 
   const loadField = useCallback(() => {
@@ -315,6 +324,10 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
 
   const savePath = () => {
     if (!imgRef.current) return
+    const pathData: AutoPathData = {
+      markers: markers.filter((m) => m.onField).map((m) => ({ type: m.type, id: m.id, x: m.x, y: m.y })),
+      path: [...path],
+    }
     const img = imgRef.current
     const off = document.createElement('canvas')
     off.width = img.naturalWidth
@@ -344,7 +357,7 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
       ctx.lineWidth = 2
       ctx.stroke()
     })
-    onSave(off.toDataURL('image/png'))
+    onSave(off.toDataURL('image/png'), pathData)
   }
 
   if (savedImage) {

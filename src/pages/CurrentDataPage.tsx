@@ -4,7 +4,8 @@ import { db } from '../db'
 import { useApp } from '../context'
 import { aggregateSubmissions } from '../aggregate'
 import { getScoutDisplayNames } from '../scoutDisplayName'
-import type { Competition, ScoutSubmission, TeamAggregate } from '../types'
+import type { AutoPathData, Competition, ScoutSubmission, TeamAggregate } from '../types'
+import { AutoPathViewer } from '../components/AutoPathViewer'
 import styles from './CurrentDataPage.module.css'
 
 export function CurrentDataPage() {
@@ -44,7 +45,13 @@ export function CurrentDataPage() {
   const showAggregate = viewMode === 'avg' || !selectedSubmission
   const dataAgg = showAggregate ? aggregate : null
   const dataSingle = showAggregate ? null : selectedSubmission
-  const galleryImages = dataAgg?.autoPathImages?.length ? dataAgg.autoPathImages : dataSingle?.autoPathImageData ? [dataSingle.autoPathImageData] : []
+  const galleryItems: { image?: string; pathData?: AutoPathData }[] = dataAgg?.autoPathItems?.length
+    ? dataAgg.autoPathItems
+    : dataSingle
+      ? (dataSingle.autoPathImageData || dataSingle.autoPathData
+          ? [{ image: dataSingle.autoPathImageData, pathData: dataSingle.autoPathData }]
+          : [])
+      : []
 
   const handleDelete = async () => {
     if (!selectedScoutId || !isAdminLoggedIn) return
@@ -85,13 +92,17 @@ export function CurrentDataPage() {
         <>
           <DataDisplay agg={dataAgg} single={null} />
           <div className={styles.notesSection}><button type="button" onClick={() => setNotesOpen(true)}>Notes</button></div>
-          {galleryImages.length > 0 && (
+          {galleryItems.length > 0 && (
             <div className={styles.gallery}>
               <h3>Auto paths</h3>
               <div className={styles.galleryGrid}>
-                {galleryImages.map((src, i) => (
+                {galleryItems.map((item, i) => (
                   <button key={i} type="button" className={styles.galleryImgBtn} onClick={() => setGalleryLightboxIndex(i)}>
-                    <img src={src} alt={`Path ${i + 1}`} className={styles.galleryImg} />
+                    {item.image ? (
+                      <img src={item.image} alt={`Path ${i + 1}`} className={styles.galleryImg} />
+                    ) : item.pathData ? (
+                      <AutoPathViewer pathData={item.pathData} maxWidth={280} className={styles.galleryImg} />
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -103,11 +114,15 @@ export function CurrentDataPage() {
         <>
           <DataDisplay agg={null} single={dataSingle} />
           <div className={styles.notesSection}><button type="button" onClick={() => setNotesOpen(true)}>Notes</button></div>
-          {galleryImages.length > 0 && (
+          {galleryItems.length > 0 && (
             <div className={styles.gallery}>
               <h3>Auto path</h3>
               <button type="button" className={styles.galleryImgBtn} onClick={() => setGalleryLightboxIndex(0)}>
-                <img src={galleryImages[0]} alt="Auto path" className={styles.galleryImg} />
+                {galleryItems[0].image ? (
+                  <img src={galleryItems[0].image} alt="Auto path" className={styles.galleryImg} />
+                ) : galleryItems[0].pathData ? (
+                  <AutoPathViewer pathData={galleryItems[0].pathData} maxWidth={280} className={styles.galleryImg} />
+                ) : null}
               </button>
             </div>
           )}
@@ -134,18 +149,25 @@ export function CurrentDataPage() {
         </div>
       )}
 
-      {galleryLightboxIndex != null && galleryImages.length > 0 && (
+      {galleryLightboxIndex != null && galleryItems.length > 0 && (
         <div className={styles.lightboxBackdrop} onClick={() => setGalleryLightboxIndex(null)} role="dialog" aria-modal="true" aria-label="Auto path gallery">
           <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
             <button type="button" className={styles.lightboxClose} onClick={() => setGalleryLightboxIndex(null)} aria-label="Close">×</button>
             {galleryLightboxIndex > 0 && (
               <button type="button" className={`${styles.lightboxArrow} ${styles.lightboxArrowLeft}`} onClick={() => setGalleryLightboxIndex((i) => (i ?? 0) - 1)} aria-label="Previous">‹</button>
             )}
-            <img src={galleryImages[galleryLightboxIndex]} alt={`Auto path ${galleryLightboxIndex + 1}`} className={styles.lightboxImg} />
-            {galleryLightboxIndex < galleryImages.length - 1 && (
+            {(() => {
+              const item = galleryItems[galleryLightboxIndex]
+              return item.image ? (
+                <img src={item.image} alt={`Auto path ${galleryLightboxIndex + 1}`} className={styles.lightboxImg} />
+              ) : item.pathData ? (
+                <AutoPathViewer pathData={item.pathData} maxWidth={640} className={styles.lightboxImg} />
+              ) : null
+            })()}
+            {galleryLightboxIndex < galleryItems.length - 1 && (
               <button type="button" className={`${styles.lightboxArrow} ${styles.lightboxArrowRight}`} onClick={() => setGalleryLightboxIndex((i) => (i ?? 0) + 1)} aria-label="Next">›</button>
             )}
-            <span className={styles.lightboxCounter}>{galleryLightboxIndex + 1} / {galleryImages.length}</span>
+            <span className={styles.lightboxCounter}>{galleryLightboxIndex + 1} / {galleryItems.length}</span>
           </div>
         </div>
       )}
