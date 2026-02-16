@@ -53,6 +53,22 @@ export function AdminPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const handleDeleteCompetition = async (comp: Competition) => {
+    if (!confirm(`Delete competition "${comp.name}"? This will also delete all scout data for this competition. This cannot be undone.`)) return
+    await db.submissions.where('competitionId').equals(comp.id).delete()
+    await db.competitions.delete(comp.id)
+    setCompetitions(await db.competitions.toArray())
+  }
+
+  const handleRemoveTeam = async (comp: Competition, teamNumber: number) => {
+    if (!confirm(`Remove team ${teamNumber} from "${comp.name}"? Scout data for this team will remain but the team won't appear in the list.`)) return
+    const newTeamNumbers = comp.teamNumbers.filter((n) => n !== teamNumber)
+    const newTeamNames = { ...comp.teamNames }
+    delete newTeamNames[teamNumber]
+    await db.competitions.put({ ...comp, teamNumbers: newTeamNumbers, teamNames: newTeamNames })
+    setCompetitions(await db.competitions.toArray())
+  }
+
   if (!isAdminLoggedIn) {
     return (
       <div className={styles.page}>
@@ -89,6 +105,38 @@ export function AdminPage() {
           <button type="submit" className={styles.primaryBtn}>Save</button>
           {saved && <span className={styles.saved}>Saved.</span>}
         </form>
+      </section>
+
+      <section className={styles.section}>
+        <h2>Competitions & teams</h2>
+        <p className={styles.hint}>Delete a competition (and its scout data) or remove a team from a competition&apos;s list.</p>
+        {competitions.length === 0 ? (
+          <p>No competitions yet.</p>
+        ) : (
+          <ul className={styles.compList}>
+            {competitions.map((comp) => (
+              <li key={comp.id} className={styles.compItem}>
+                <div className={styles.compHeader}>
+                  <strong>{comp.name}</strong>
+                  <span className={styles.compId}>({comp.id})</span>
+                  <button type="button" className={styles.dangerBtn} onClick={() => handleDeleteCompetition(comp)}>Delete competition</button>
+                </div>
+                {comp.teamNumbers.length === 0 ? (
+                  <p className={styles.noTeams}>No teams</p>
+                ) : (
+                  <ul className={styles.teamList}>
+                    {comp.teamNumbers.slice().sort((a, b) => a - b).map((num) => (
+                      <li key={num} className={styles.teamItem}>
+                        {num} {comp.teamNames[num] ? `— ${comp.teamNames[num]}` : ''}
+                        <button type="button" className={styles.removeTeamBtn} onClick={() => handleRemoveTeam(comp, num)}>Remove</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className={styles.section}>

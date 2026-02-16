@@ -7,11 +7,14 @@ import type { Competition } from '../types'
 import type { ScoutSubmission } from '../types'
 import styles from './HomePage.module.css'
 
-type SortKey = 'pts' | 'hubPts' | null
+type SortKey = 'pts' | 'hubPts' | 'shotPct' | null
 type SortDir = 'asc' | 'desc' | null
 
 const CLIMB_OPTIONS = ["can't climb", 'L1', 'L2', 'L3'] as const
 const CLIMB_REL_OPTIONS = ['unreliable', 'semi-reliable', 'reliable'] as const
+const CLIMB_SPOT_OPTIONS = ['left', 'right', 'center'] as const
+const MOVE_SHOOT_OPTIONS = ['yes', 'kinda', 'no'] as const
+const SHOT_ACCURACY_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
 
 export function HomePage() {
   const { competitionId, setCompetitionId, searchType, setSearchType, searchQuery, setSearchQuery, matchFilter, setMatchFilter } = useApp()
@@ -21,6 +24,11 @@ export function HomePage() {
   const [sortDir, setSortDir] = useState<SortDir>(null)
   const [climbFilter, setClimbFilter] = useState<string>('')
   const [climbRelFilter, setClimbRelFilter] = useState<string>('')
+  const [climbSpotFilter, setClimbSpotFilter] = useState<string>('')
+  const [turretFilter, setTurretFilter] = useState<string>('')
+  const [moveShootFilter, setMoveShootFilter] = useState<string>('')
+  const [pickUpShootFilter, setPickUpShootFilter] = useState<string>('')
+  const [shotPercentFilter, setShotPercentFilter] = useState<string>('')
 
   useEffect(() => {
     db.competitions.toArray().then(setCompetitions)
@@ -77,8 +85,29 @@ export function HomePage() {
     if (climbRelFilter) {
       list = list.filter(({ agg }) => (agg?.game.climbReliability ?? '—') === climbRelFilter)
     }
+    if (climbSpotFilter) {
+      list = list.filter(({ agg }) => {
+        const sides = agg?.pit.climbSides
+        return Array.isArray(sides) && sides.includes(climbSpotFilter)
+      })
+    }
+    if (turretFilter) {
+      const want = turretFilter === 'yes'
+      list = list.filter(({ agg }) => agg?.pit.turret !== undefined && agg?.pit.turret !== null && agg.pit.turret === want)
+    }
+    if (moveShootFilter) {
+      list = list.filter(({ agg }) => (agg?.game.moveWhileShooting ?? '—') === moveShootFilter)
+    }
+    if (pickUpShootFilter) {
+      const want = pickUpShootFilter === 'yes'
+      list = list.filter(({ agg }) => agg?.game.pickUpWhileShooting !== undefined && agg?.game.pickUpWhileShooting !== null && agg.game.pickUpWhileShooting === want)
+    }
+    if (shotPercentFilter) {
+      const want = parseInt(shotPercentFilter, 10)
+      list = list.filter(({ agg }) => agg?.game.shotAccuracyPercent != null && agg.game.shotAccuracyPercent === want)
+    }
     return list
-  }, [filteredTeamsAndAggregates, climbFilter, climbRelFilter])
+  }, [filteredTeamsAndAggregates, climbFilter, climbRelFilter, climbSpotFilter, turretFilter, moveShootFilter, pickUpShootFilter, shotPercentFilter])
 
   const sortedTeams = useMemo(() => {
     const list = [...filterByClimbAndRel]
@@ -94,6 +123,9 @@ export function HomePage() {
       } else if (sortKey === 'hubPts') {
         valA = aggA?.game.hubPtsAuto ?? null
         valB = aggB?.game.hubPtsAuto ?? null
+      } else if (sortKey === 'shotPct') {
+        valA = aggA?.game.shotAccuracyPercent ?? null
+        valB = aggB?.game.shotAccuracyPercent ?? null
       }
       if (valA == null && valB == null) return a.teamNumber - b.teamNumber
       if (valA == null) return sortDir === 'asc' ? 1 : -1
@@ -184,8 +216,55 @@ export function HomePage() {
                       {CLIMB_REL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </th>
+                  <th className={styles.filterTh}>
+                    <label className={styles.filterLabel}>Climb Spot</label>
+                    <select value={climbSpotFilter} onChange={(e) => setClimbSpotFilter(e.target.value)} className={styles.filterSelect} title="Filter by climb spot">
+                      <option value="">All</option>
+                      {CLIMB_SPOT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </th>
                   <th className={styles.sortable} onClick={() => handleSort('hubPts')} title="Click: high→low, again low→high, again clear">
                     Hub pts/auto {sortKey === 'hubPts' && (sortDir === 'desc' ? '↓' : '↑')}
+                  </th>
+                  <th className={styles.filterTh}>
+                    <label className={styles.filterLabel}>Turret</label>
+                    <select value={turretFilter} onChange={(e) => setTurretFilter(e.target.value)} className={styles.filterSelect} title="Filter by turret">
+                      <option value="">All</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </th>
+                  <th className={styles.filterTh}>
+                    <label className={styles.filterLabel}>Move shoot</label>
+                    <select value={moveShootFilter} onChange={(e) => setMoveShootFilter(e.target.value)} className={styles.filterSelect} title="Filter by move while shooting">
+                      <option value="">All</option>
+                      {MOVE_SHOOT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </th>
+                  <th className={styles.filterTh}>
+                    <label className={styles.filterLabel}>Pick up shoot</label>
+                    <select value={pickUpShootFilter} onChange={(e) => setPickUpShootFilter(e.target.value)} className={styles.filterSelect} title="Filter by pick up while shooting">
+                      <option value="">All</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </th>
+                  <th
+                    className={`${styles.filterTh} ${styles.sortable}`}
+                    onClick={() => handleSort('shotPct')}
+                    title="Click: high→low, again low→high, again clear"
+                  >
+                    <label className={styles.filterLabel}>Shot % {sortKey === 'shotPct' && (sortDir === 'desc' ? '↓' : '↑')}</label>
+                    <select
+                      value={shotPercentFilter}
+                      onChange={(e) => setShotPercentFilter(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className={styles.filterSelect}
+                      title="Filter by shot accuracy %"
+                    >
+                      <option value="">All</option>
+                      {SHOT_ACCURACY_OPTIONS.map((o) => <option key={o} value={String(o)}>{o}%</option>)}
+                    </select>
                   </th>
                 </tr>
               </thead>
@@ -201,7 +280,12 @@ export function HomePage() {
                     <td>{agg?.game.avgPtsPerActivePeriod ?? '—'}</td>
                     <td>{agg?.pit.climb ?? '—'}</td>
                     <td>{agg?.game.climbReliability ?? '—'}</td>
+                    <td>{agg?.pit.climbSides?.join(', ') ?? '—'}</td>
                     <td>{agg?.game.hubPtsAuto ?? '—'}</td>
+                    <td>{agg?.pit.turret == null ? '—' : agg.pit.turret ? 'Yes' : 'No'}</td>
+                    <td>{agg?.game.moveWhileShooting ?? '—'}</td>
+                    <td>{agg?.game.pickUpWhileShooting == null ? '—' : agg?.game.pickUpWhileShooting ? 'Yes' : 'No'}</td>
+                    <td>{agg?.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent}%` : '—'}</td>
                   </tr>
                 ))}
               </tbody>

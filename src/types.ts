@@ -18,6 +18,7 @@ export interface ScoutSubmission {
   drivetrain?: 'swerve drive' | 'tank drive' | 'other'
   drivetrainOther?: string
   trench?: boolean
+  turret?: boolean
   climb?: 'L1' | 'L2' | 'L3' | "can't climb"
   climbSides?: ('right' | 'left' | 'center')[]
   climbTime?: number
@@ -31,6 +32,9 @@ export interface ScoutSubmission {
   climbAuto?: boolean
   climbReliability?: 'unreliable' | 'semi-reliable' | 'reliable'
   intakeReliability?: 'unreliable' | 'semi-reliable' | 'reliable'
+  moveWhileShooting?: 'yes' | 'kinda' | 'no'
+  pickUpWhileShooting?: boolean
+  shotAccuracyPercent?: number // 0, 10, 20, ..., 100
 
   notes?: string
   autoPathImageData?: string // base64 PNG
@@ -44,6 +48,7 @@ export interface TeamAggregate {
   pit: {
     drivetrain: string
     trench: boolean | null
+    turret: boolean | null
     climb: string
     climbSides: string[] | null
     climbTime: number | null
@@ -57,6 +62,9 @@ export interface TeamAggregate {
     climbAuto: boolean | null
     climbReliability: string | null
     intakeReliability: string | null
+    moveWhileShooting: string | null
+    pickUpWhileShooting: boolean | null
+    shotAccuracyPercent: number | null
   }
   autoPathImages: string[]
   notesByScout: { scoutDisplayName: string; notes: string }[]

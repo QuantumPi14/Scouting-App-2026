@@ -45,8 +45,13 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
       const withVal = submissions.filter((s) => s.trench !== undefined && s.trench !== null)
       if (withVal.length === 0) return null
       const sorted = [...withVal].sort((a, b) => b.createdAt - a.createdAt)
-      for (const s of sorted) return s.trench ?? null
-      return null
+      return sorted[0].trench ?? null
+    })(),
+    turret: (() => {
+      const withVal = submissions.filter((s) => s.turret !== undefined && s.turret !== null)
+      if (withVal.length === 0) return null
+      const sorted = [...withVal].sort((a, b) => b.createdAt - a.createdAt)
+      return sorted[0].turret ?? null
     })(),
     climb: mostRecentNonEmpty(submissions, (s) => s.climb, (v) => String(v)) ?? '—',
     climbSides: (() => {
@@ -76,6 +81,14 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
     })(),
     climbReliability: mostRecentNonEmpty(submissions, (s) => s.climbReliability, (v) => String(v)),
     intakeReliability: mostRecentNonEmpty(submissions, (s) => s.intakeReliability, (v) => String(v)),
+    moveWhileShooting: mostRecentNonEmpty(submissions, (s) => s.moveWhileShooting, (v) => String(v)),
+    pickUpWhileShooting: (() => {
+      const withVal = submissions.filter((s) => s.pickUpWhileShooting !== undefined && s.pickUpWhileShooting !== null)
+      if (withVal.length === 0) return null
+      const sorted = [...withVal].sort((a, b) => b.createdAt - a.createdAt)
+      return sorted[0].pickUpWhileShooting ?? null
+    })(),
+    shotAccuracyPercent: avg(numericValues(submissions.map((s) => s.shotAccuracyPercent))) ?? null,
   }
 
   const autoPathImages = submissions.map((s) => s.autoPathImageData).filter((d): d is string => nonEmpty(d ?? ''))

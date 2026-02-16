@@ -101,28 +101,9 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
     return { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height }
   }
 
-  const handleStripMarkerMouseDown = (e: React.MouseEvent, id: string) => {
-    e.preventDefault()
-    setDragging({ id })
-  }
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width
-    const y = (e.clientY - rect.top) / rect.height
-    if (dragging) {
-      setMarkers((m) => m.map((mark) => (mark.id === dragging.id ? { ...mark, x, y, onField: true } : mark)))
-      return
-    }
-    if (drawing) setPath((p) => [...p, { x, y }])
-  }
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (dragging) return
-    const pt = canvasToField(e.clientX, e.clientY)
-    if (!pt || e.button !== 0) return
+  const handlePointerDown = (clientX: number, clientY: number) => {
+    const pt = canvasToField(clientX, clientY)
+    if (!pt) return
     const hitRadius = 0.02
     const hit = markers.find((m) => m.onField && Math.hypot(m.x - pt.x, m.y - pt.y) < hitRadius)
     if (hit) {
@@ -133,29 +114,87 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
     setPath((p) => [...p, pt])
   }
 
-  const handleCanvasMouseUp = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
+  const handlePointerMove = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const x = (clientX - rect.left) / rect.width
+    const y = (clientY - rect.top) / rect.height
+    if (dragging) {
+      setMarkers((m) => m.map((mark) => (mark.id === dragging.id ? { ...mark, x, y, onField: true } : mark)))
+      return
+    }
+    if (drawing) setPath((p) => [...p, { x, y }])
+  }
+
+  const handlePointerUp = (clientX: number, clientY: number) => {
     setDrawing(false)
     const id = dragging?.id
     setDragging(null)
     if (id && trashRef.current) {
       const rect = trashRef.current.getBoundingClientRect()
-      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
         setMarkers((m) => {
           const mark = m.find((x) => x.id === id)
           if (!mark) return m
           if (mark.type === 'shot') return m.filter((x) => x.id !== id)
           const idx = m.findIndex((x) => x.id === id)
-          const stripX = 0.1 + idx * 0.1
-          return m.map((x) => (x.id === id ? { ...x, x: stripX, y: 0.9, onField: false } : x))
+          return m.map((x) => (x.id === id ? { ...x, x: 0.1 + idx * 0.1, y: 0.9, onField: false } : x))
         })
       }
     }
   }
 
+  const handleStripMarkerMouseDown = (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    setDragging({ id })
+  }
+
+  const handleStripMarkerTouchStart = (e: React.TouchEvent, id: string) => {
+    e.preventDefault()
+    setDragging({ id })
+  }
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    handlePointerMove(e.clientX, e.clientY)
+  }
+
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (dragging) return
+    if (e.button !== 0) return
+    handlePointerDown(e.clientX, e.clientY)
+  }
+
+  const handleCanvasMouseUp = (e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    handlePointerUp(e.clientX, e.clientY)
+  }
+
   const handleCanvasMouseLeave = () => {
     setDrawing(false)
     if (!dragging) setDragging(null)
+  }
+
+  const handleCanvasTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) return
+    e.preventDefault()
+    if (dragging) return
+    const t = e.touches[0]
+    handlePointerDown(t.clientX, t.clientY)
+  }
+
+  const handleCanvasTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) return
+    e.preventDefault()
+    const t = e.touches[0]
+    handlePointerMove(t.clientX, t.clientY)
+  }
+
+  const handleCanvasTouchEnd = (e: React.TouchEvent) => {
+    if (e.changedTouches.length === 0) return
+    e.preventDefault()
+    const t = e.changedTouches[0]
+    handlePointerUp(t.clientX, t.clientY)
   }
 
   useEffect(() => {
@@ -166,6 +205,17 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
       const rect = canvas.getBoundingClientRect()
       const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
       const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+      setMarkers((m) => m.map((mark) => (mark.id === dragging.id ? { ...mark, x, y, onField: true } : mark)))
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return
+      e.preventDefault()
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const t = e.touches[0]
+      const rect = canvas.getBoundingClientRect()
+      const x = Math.max(0, Math.min(1, (t.clientX - rect.left) / rect.width))
+      const y = Math.max(0, Math.min(1, (t.clientY - rect.top) / rect.height))
       setMarkers((m) => m.map((mark) => (mark.id === dragging.id ? { ...mark, x, y, onField: true } : mark)))
     }
     const onUp = (e: MouseEvent) => {
@@ -184,11 +234,33 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
         }
       }
     }
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length === 0) return
+      const id = dragging.id
+      const t = e.changedTouches[0]
+      setDragging(null)
+      if (trashRef.current) {
+        const rect = trashRef.current.getBoundingClientRect()
+        if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
+          setMarkers((m) => {
+            const mark = m.find((x) => x.id === id)
+            if (!mark) return m
+            if (mark.type === 'shot') return m.filter((x) => x.id !== id)
+            const idx = m.findIndex((x) => x.id === id)
+            return m.map((x) => (x.id === id ? { ...x, x: 0.1 + idx * 0.1, y: 0.9, onField: false } : x))
+          })
+        }
+      }
+    }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd)
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
     }
   }, [dragging])
 
@@ -297,7 +369,10 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
           onMouseDown={handleCanvasMouseDown}
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseLeave}
-          style={{ width: fieldSize.w, height: fieldSize.h, maxWidth: '100%', cursor: drawing ? 'crosshair' : 'default' }}
+          onTouchStart={handleCanvasTouchStart}
+          onTouchMove={handleCanvasTouchMove}
+          onTouchEnd={handleCanvasTouchEnd}
+          style={{ width: fieldSize.w, height: fieldSize.h, maxWidth: '100%', cursor: drawing ? 'crosshair' : 'default', touchAction: 'none' }}
         />
       </div>
       <div className={styles.strip}>
@@ -307,8 +382,9 @@ export function AutoPathEditor({ onSave, savedImage }: { onSave: (base64: string
             <div
               className={styles.stripMarker}
               data-marker-id={mark.id}
-              style={{ background: getMarkerColor(mark.type) }}
+              style={{ background: getMarkerColor(mark.type), touchAction: 'none' }}
               onMouseDown={(e) => handleStripMarkerMouseDown(e, mark.id)}
+              onTouchStart={(e) => handleStripMarkerTouchStart(e, mark.id)}
               role="button"
               tabIndex={0}
             />

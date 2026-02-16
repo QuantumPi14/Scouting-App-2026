@@ -10,6 +10,8 @@ const CLIMB_OPTIONS = ['L1', 'L2', 'L3', "can't climb"] as const
 const CLIMB_SIDES = ['right', 'left', 'center'] as const
 const INTAKE_OPTIONS = ['one at a time', 'multiple'] as const
 const RELIABILITY_OPTIONS = ['unreliable', 'semi-reliable', 'reliable'] as const
+const MOVE_WHILE_SHOOTING_OPTIONS = ['yes', 'kinda', 'no'] as const
+const SHOT_ACCURACY_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
 
 export function AddDataPage() {
   const { competitionId, teamNumber } = useParams<{ competitionId: string; teamNumber: string }>()
@@ -21,6 +23,7 @@ export function AddDataPage() {
   const [drivetrain, setDrivetrain] = useState<ScoutSubmission['drivetrain']>('tank drive')
   const [drivetrainOther, setDrivetrainOther] = useState('')
   const [trench, setTrench] = useState<boolean | undefined>(undefined)
+  const [turret, setTurret] = useState<boolean | undefined>(undefined)
   const [climb, setClimb] = useState<ScoutSubmission['climb']>(undefined)
   const [climbSides, setClimbSides] = useState<('right' | 'left' | 'center')[]>([])
   const [climbTime, setClimbTime] = useState<number | ''>('')
@@ -32,6 +35,9 @@ export function AddDataPage() {
   const [climbAuto, setClimbAuto] = useState<boolean | undefined>(undefined)
   const [climbReliability, setClimbReliability] = useState<ScoutSubmission['climbReliability']>(undefined)
   const [intakeReliability, setIntakeReliability] = useState<ScoutSubmission['intakeReliability']>(undefined)
+  const [moveWhileShooting, setMoveWhileShooting] = useState<ScoutSubmission['moveWhileShooting']>(undefined)
+  const [pickUpWhileShooting, setPickUpWhileShooting] = useState<boolean | undefined>(undefined)
+  const [shotAccuracyPercent, setShotAccuracyPercent] = useState<number | ''>('')
   const [notes, setNotes] = useState('')
   const [autoPathImageData, setAutoPathImageData] = useState<string | undefined>(undefined)
 
@@ -47,7 +53,10 @@ export function AddDataPage() {
     hubPtsAuto !== '' ||
     climbAuto !== undefined ||
     climbReliability != null ||
-    intakeReliability != null
+    intakeReliability != null ||
+    moveWhileShooting != null ||
+    pickUpWhileShooting !== undefined ||
+    shotAccuracyPercent !== ''
 
   const canSubmit = scoutName.trim() && (!hasAnyGameStat || (matchNumber !== '' && Number.isFinite(Number(matchNumber))))
 
@@ -61,6 +70,7 @@ export function AddDataPage() {
       drivetrain: drivetrain === 'other' ? 'other' : drivetrain,
       drivetrainOther: drivetrain === 'other' ? drivetrainOther.trim() || undefined : undefined,
       trench: trench,
+      turret,
       climb,
       climbSides: climbSides.length ? climbSides : undefined,
       climbTime: climbTime === '' ? undefined : Number(climbTime),
@@ -72,6 +82,9 @@ export function AddDataPage() {
       climbAuto,
       climbReliability,
       intakeReliability,
+      moveWhileShooting,
+      pickUpWhileShooting,
+      shotAccuracyPercent: shotAccuracyPercent === '' ? undefined : Number(shotAccuracyPercent),
       notes: notes.trim() || undefined,
       autoPathImageData,
     }
@@ -111,6 +124,11 @@ export function AddDataPage() {
           <div className={styles.boolRow}>
             <button type="button" className={trench === true ? styles.active : ''} onClick={() => setTrench(true)}>Yes</button>
             <button type="button" className={trench === false ? styles.active : ''} onClick={() => setTrench(false)}>No</button>
+          </div>
+          <label>Turret?</label>
+          <div className={styles.boolRow}>
+            <button type="button" className={turret === true ? styles.active : ''} onClick={() => setTurret(true)}>Yes</button>
+            <button type="button" className={turret === false ? styles.active : ''} onClick={() => setTurret(false)}>No</button>
           </div>
           <label>Climb</label>
           <select value={climb ?? ''} onChange={(e) => setClimb((e.target.value as ScoutSubmission['climb']) || undefined)}>
@@ -172,6 +190,25 @@ export function AddDataPage() {
             <option value="">—</option>
             {RELIABILITY_OPTIONS.map((o) => (
               <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          <label>Move while shooting?</label>
+          <select value={moveWhileShooting ?? ''} onChange={(e) => setMoveWhileShooting((e.target.value as ScoutSubmission['moveWhileShooting']) || undefined)}>
+            <option value="">—</option>
+            {MOVE_WHILE_SHOOTING_OPTIONS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          <label>Pick up while shooting?</label>
+          <div className={styles.boolRow}>
+            <button type="button" className={pickUpWhileShooting === true ? styles.active : ''} onClick={() => setPickUpWhileShooting(true)}>Yes</button>
+            <button type="button" className={pickUpWhileShooting === false ? styles.active : ''} onClick={() => setPickUpWhileShooting(false)}>No</button>
+          </div>
+          <label>% Accuracy of shots</label>
+          <select value={shotAccuracyPercent === '' ? '' : shotAccuracyPercent} onChange={(e) => setShotAccuracyPercent(e.target.value === '' ? '' : Number(e.target.value))}>
+            <option value="">—</option>
+            {SHOT_ACCURACY_OPTIONS.map((o) => (
+              <option key={o} value={o}>{o}%</option>
             ))}
           </select>
         </div>

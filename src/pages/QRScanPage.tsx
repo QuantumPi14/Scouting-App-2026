@@ -4,25 +4,34 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { parseQRPayload, importConfig, importData } from '../qr'
 import styles from './QRScanPage.module.css'
 
+const SCAN_FPS = 10
+const MIN_HEIGHT_PX = 280
+
 export function QRScanPage() {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const lastScannedRef = useRef<string | null>(null)
 
   const startScan = () => {
     if (!containerRef.current) return
     setStatus('scanning')
     setMessage('')
+    lastScannedRef.current = null
     const html5Qr = new Html5Qrcode(containerRef.current.id)
     scannerRef.current = html5Qr
     html5Qr.start(
       { facingMode: 'environment' },
-      { fps: 5 },
+      { fps: SCAN_FPS },
       (decodedText) => {
-        const payload = parseQRPayload(decodedText)
+        const text = (decodedText || '').trim()
+        if (!text) return
+        if (lastScannedRef.current === text) return
+        lastScannedRef.current = text
+        const payload = parseQRPayload(text)
         if (!payload) {
-          setMessage('Invalid QR format')
+          setMessage('QR not recognized. Scan a config or data QR from this app.')
           setStatus('error')
           stopScan()
           return
@@ -46,7 +55,7 @@ export function QRScanPage() {
       },
       () => {}
     ).catch((err) => {
-      setMessage(String(err))
+      setMessage(String(err?.message || err) || 'Camera error. Use HTTPS and allow camera access.')
       setStatus('error')
     })
   }
@@ -69,8 +78,8 @@ export function QRScanPage() {
   return (
     <div className={styles.page}>
       <h1>Scan QR</h1>
-      <p>Scan a config QR (from Admin) or data QR to import.</p>
-      <div ref={containerRef} id="qr-reader" className={styles.reader} />
+      <p>Scan a config QR (from Admin) or data QR to import. Use good lighting and hold the code steady.</p>
+      <div ref={containerRef} id="qr-reader" className={styles.reader} style={{ minHeight: status === 'scanning' ? MIN_HEIGHT_PX : 0 }} />
       <div className={styles.actions}>
         {status !== 'scanning' && (
           <button type="button" onClick={startScan}>Start camera</button>

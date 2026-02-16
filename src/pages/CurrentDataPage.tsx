@@ -160,6 +160,7 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <h2>Pit stats</h2>
         <p>Drivetrain: {agg.pit.drivetrain}</p>
         <p>Trench: {agg.pit.trench == null ? '—' : agg.pit.trench ? 'Yes' : 'No'}</p>
+        <p>Turret: {agg.pit.turret == null ? '—' : agg.pit.turret ? 'Yes' : 'No'}</p>
         <p>Climb: {agg.pit.climb}</p>
         {agg.pit.climbSides && <p>Climb sides: {agg.pit.climbSides.join(', ')}</p>}
         {agg.pit.climbTime != null && <p>Climb time: {agg.pit.climbTime}</p>}
@@ -171,6 +172,9 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <p>Climb auto: {agg.game.climbAuto == null ? '—' : agg.game.climbAuto ? 'Yes' : 'No'}</p>
         <p>Climb reliability: {agg.game.climbReliability ?? '—'}</p>
         <p>Intake reliability: {agg.game.intakeReliability ?? '—'}</p>
+        <p>Move while shooting: {agg.game.moveWhileShooting ?? '—'}</p>
+        <p>Pick up while shooting: {agg.game.pickUpWhileShooting == null ? '—' : agg.game.pickUpWhileShooting ? 'Yes' : 'No'}</p>
+        <p>Shot accuracy: {agg.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent}%` : '—'}</p>
       </div>
     )
   }
@@ -180,6 +184,7 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <h2>Pit stats</h2>
         <p>Drivetrain: {single.drivetrain === 'other' ? (single.drivetrainOther ?? '—') : (single.drivetrain ?? '—')}</p>
         <p>Trench: {single.trench == null ? '—' : single.trench ? 'Yes' : 'No'}</p>
+        <p>Turret: {single.turret == null ? '—' : single.turret ? 'Yes' : 'No'}</p>
         <p>Climb: {single.climb ?? '—'}</p>
         {single.climbSides?.length ? <p>Climb sides: {single.climbSides.join(', ')}</p> : null}
         {single.climbTime != null && <p>Climb time: {single.climbTime}</p>}
@@ -192,6 +197,9 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <p>Climb auto: {single.climbAuto == null ? '—' : single.climbAuto ? 'Yes' : 'No'}</p>
         <p>Climb reliability: {single.climbReliability ?? '—'}</p>
         <p>Intake reliability: {single.intakeReliability ?? '—'}</p>
+        <p>Move while shooting: {single.moveWhileShooting ?? '—'}</p>
+        <p>Pick up while shooting: {single.pickUpWhileShooting == null ? '—' : single.pickUpWhileShooting ? 'Yes' : 'No'}</p>
+        <p>Shot accuracy: {single.shotAccuracyPercent != null ? `${single.shotAccuracyPercent}%` : '—'}</p>
       </div>
     )
   }

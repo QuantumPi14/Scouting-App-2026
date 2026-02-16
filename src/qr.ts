@@ -96,11 +96,30 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
   return urls
 }
 
+/** Parse and validate QR payload. Lenient: trims input, accepts v as number or string, normalizes shape. */
 export function parseQRPayload(json: string): ConfigPayload | DataPayload | null {
   try {
-    const data = JSON.parse(json)
-    if (data?.v === QR_VERSION && (data.type === 'config' || data.type === 'data')) return data
-    return null
+    const raw = typeof json === 'string' ? json.trim() : ''
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    const v = data?.v
+    const versionOk = v === QR_VERSION || v === '1'
+    if (!versionOk || (data?.type !== 'config' && data?.type !== 'data')) return null
+    if (data.type === 'config') {
+      return {
+        v: QR_VERSION,
+        type: 'config',
+        competitions: Array.isArray(data.competitions) ? data.competitions : [],
+        exportedAt: typeof data.exportedAt === 'number' ? data.exportedAt : Date.now(),
+      }
+    }
+    return {
+      v: QR_VERSION,
+      type: 'data',
+      competitionId: data.competitionId,
+      submissions: Array.isArray(data.submissions) ? data.submissions : [],
+      exportedAt: typeof data.exportedAt === 'number' ? data.exportedAt : Date.now(),
+    }
   } catch {
     return null
   }
