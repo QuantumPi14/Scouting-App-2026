@@ -18,7 +18,7 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Umuja Scouting App',
+        name: 'Umoja Scouting App',
         short_name: 'Scouting',
         description: 'FRC Scouting App - works offline',
         theme_color: '#1f1a16',

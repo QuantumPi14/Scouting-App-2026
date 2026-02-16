@@ -1,4 +1,4 @@
-# Umuja Robotics Scouting App v0.0
+# Umoja Robotics Scouting App v0.0
 
 FRC scouting app that works offline. Data can be shared via QR codes.
 
@@ -18,7 +18,7 @@ FRC scouting app that works offline. Data can be shared via QR codes.
 
 ## First use
 
-1. Open **Admin**, enter the password, then add a competition (e.g. Durham) and paste team numbers (and optional names), one per line: `7712, Umuja` or `7712`. Save.
+1. Open **Admin**, enter the password, then add a competition (e.g. Durham) and paste team numbers (and optional names), one per line: `7712, Umoja` or `7712`. Save.
 2. On the home page, select the competition, then search by team number or match number. Open a team ? **Current data** or **Add data**.
 3. **Create QR** (from Home) exports scout data. **Scan QR** imports data. From Admin, **Export config QR** exports only competitions and team lists for others to scan.
 

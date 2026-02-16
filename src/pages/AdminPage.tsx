@@ -96,12 +96,12 @@ export function AdminPage() {
 
       <section className={styles.section}>
         <h2>Add competition & teams</h2>
-        <p className={styles.hint}>You have {competitions.length} competition(s). One line per team: team number, then optional name (e.g. <code>7712, Umuja</code> or <code>7712</code>)</p>
+        <p className={styles.hint}>You have {competitions.length} competition(s). One line per team: team number, then optional name (e.g. <code>7712, Umoja</code> or <code>7712</code>)</p>
         <form onSubmit={handleAddCompetition}>
           <label>Competition name</label>
           <input value={compName} onChange={(e) => setCompName(e.target.value)} placeholder="e.g. Durham" required />
           <label>Teams (number or number, name per line)</label>
-          <textarea value={teamInput} onChange={(e) => setTeamInput(e.target.value)} rows={8} placeholder="7712, Umuja&#10;7701&#10;..." />
+          <textarea value={teamInput} onChange={(e) => setTeamInput(e.target.value)} rows={8} placeholder="7712, Umoja&#10;7701&#10;..." />
           <button type="submit" className={styles.primaryBtn}>Save</button>
           {saved && <span className={styles.saved}>Saved.</span>}
         </form>
