@@ -1,0 +1,84 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.canvasWrap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--umoja-border);
+  border-radius: 8px;
+  background: var(--umoja-surface);
+}
+.canvas {
+  display: block;
+  touch-action: none;
+}
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.5rem 0;
+  border: 1px solid var(--umoja-border);
+  border-radius: 6px;
+  background: var(--umoja-surface);
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.legendLabel {
+  font-size: 0.875rem;
+}
+.stripMarker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.stripMarker:active {
+  cursor: grabbing;
+}
+.addShotBtn {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+}
+.trashBin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed #666;
+  border-radius: 6px;
+  background: var(--umoja-surface-alt);
+  cursor: default;
+}
+.trashLabel {
+  font-size: 0.7rem;
+  color: var(--umoja-text-muted);
+}
+.dragHint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--umoja-text-muted);
+}
+.saveRow {
+  display: flex;
+}
+.savePathBtn {
+  padding: 0.5rem 1rem;
+}
+.savedLabel {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+.savedImg {
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--umoja-border);
+}

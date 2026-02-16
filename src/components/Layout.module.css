@@ -1,0 +1,47 @@
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: var(--umoja-header);
+  border-bottom: 3px solid var(--umoja-yellow);
+}
+.homeLink {
+  font-weight: 700;
+  color: var(--umoja-yellow);
+  text-decoration: none;
+}
+.homeLink:hover {
+  text-decoration: underline;
+  color: #f0c060;
+}
+.header button {
+  color: var(--umoja-yellow);
+  border-color: rgba(226, 166, 63, 0.5);
+  background: transparent;
+}
+.header button:hover {
+  background: rgba(226, 166, 63, 0.15);
+  color: #f0c060;
+}
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.updateBtn {
+  font-size: 0.875rem;
+  padding: 0.35rem 0.6rem;
+}
+.main {
+  flex: 1;
+  padding: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}

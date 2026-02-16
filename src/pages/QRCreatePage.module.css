@@ -1,0 +1,36 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 280px;
+}
+.error {
+  color: var(--umoja-danger);
+  margin: 0;
+  font-size: 0.9rem;
+}
+.qrList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+.qrLabel {
+  font-size: 0.9rem;
+  color: var(--umoja-text-muted);
+}
+.qrImg {
+  max-width: 280px;
+  height: auto;
+  border-radius: 8px;
+}

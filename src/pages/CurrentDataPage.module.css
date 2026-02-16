@@ -1,0 +1,227 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.subtitle {
+  margin: 0;
+  color: var(--umoja-text-muted);
+}
+.scoutRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.scoutControls {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.tab, .tabActive {
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--umoja-border);
+  background: var(--umoja-surface);
+  color: var(--umoja-text);
+}
+.tabActive {
+  background: var(--umoja-surface-alt);
+}
+.scoutSelect {
+  min-width: 140px;
+}
+.deleteBtn {
+  margin-left: auto;
+}
+.danger {
+  background: var(--umoja-danger);
+  border-color: var(--umoja-danger);
+  color: #fff;
+}
+.danger:hover {
+  background: var(--umoja-danger-hover);
+  border-color: var(--umoja-danger-hover);
+}
+.dataSection {
+  border: 1px solid var(--umoja-border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--umoja-surface);
+}
+.dataSection h2 {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 1rem;
+}
+.dataSection h2:first-child {
+  margin-top: 0;
+}
+.dataSection p {
+  margin: 0.25rem 0;
+  font-size: 0.95rem;
+}
+.notesSection {
+  margin-top: 0.5rem;
+}
+.gallery {
+  margin-top: 1rem;
+}
+.gallery h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.galleryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.galleryImgBtn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  display: block;
+}
+.galleryImgBtn:hover {
+  outline: 2px solid var(--umoja-primary);
+  outline-offset: 2px;
+}
+.galleryImg {
+  max-width: 100%;
+  width: 200px;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--umoja-border);
+}
+.lightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  padding: 2rem;
+}
+.lightboxContent {
+  position: relative;
+  max-width: 95vw;
+  max-height: 95vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightboxClose {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  background: var(--umoja-surface);
+  color: var(--umoja-text);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.lightboxClose:hover {
+  background: var(--umoja-border);
+  color: var(--umoja-bg);
+}
+.lightboxArrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3rem;
+  height: 3rem;
+  border: none;
+  background: var(--umoja-surface);
+  color: var(--umoja-text);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.lightboxArrowLeft {
+  left: 1rem;
+  right: auto;
+}
+.lightboxArrowRight {
+  right: 1rem;
+  left: auto;
+}
+.lightboxArrow:hover {
+  background: var(--umoja-border);
+  color: var(--umoja-bg);
+}
+.lightboxImg {
+  max-width: 100%;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.lightboxCounter {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  z-index: 1002;
+}
+.empty {
+  color: var(--umoja-text-muted);
+}
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal {
+  background: var(--umoja-surface);
+  border: 1px solid var(--umoja-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 400px;
+  width: 100%;
+}
+.modal h3 {
+  margin: 0 0 0.75rem;
+}
+.notesList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+.notesList li {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--umoja-border);
+}

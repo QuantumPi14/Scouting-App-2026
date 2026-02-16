@@ -1,0 +1,56 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.subtitle {
+  margin: 0;
+  color: var(--umoja-text-muted);
+}
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 280px;
+}
+.btn, .btnPrimary, .btnSecondary {
+  display: block;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid var(--umoja-border);
+  background: var(--umoja-surface);
+  color: var(--umoja-text);
+}
+.btn:hover, .btnPrimary:hover, .btnSecondary:hover {
+  text-decoration: none;
+  color: #fff;
+}
+.btn:hover {
+  background: var(--umoja-surface-alt);
+  color: var(--umoja-text);
+}
+.btnPrimary {
+  background: var(--umoja-primary);
+  border-color: var(--umoja-primary);
+  color: #fff;
+}
+.btnPrimary:hover {
+  background: var(--umoja-primary-hover);
+  border-color: var(--umoja-primary-hover);
+}
+.btnSecondary {
+  background: var(--umoja-green);
+  border-color: var(--umoja-green);
+  color: #fff;
+}
+.btnSecondary:hover {
+  background: var(--umoja-green-hover);
+  border-color: var(--umoja-green-hover);
+}

@@ -1,0 +1,22 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.reader {
+  max-width: 100%;
+  overflow: hidden;
+}
+.reader video {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.actions {
+  margin-top: 0.5rem;
+}
+.error {
+  color: #f87171;
+}
+.success {
+  color: #4ade80;
+}

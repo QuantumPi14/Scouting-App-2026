@@ -1,0 +1,73 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.subtitle {
+  margin: 0;
+  color: var(--umoja-text-muted);
+}
+.section {
+  border: 1px solid var(--umoja-border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--umoja-surface);
+}
+.sectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.fields label {
+  margin-top: 0.5rem;
+}
+.fields label:first-child {
+  margin-top: 0;
+}
+.boolRow, .checkRow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.boolRow button.active, .checkLabel input:checked + span {
+  background: var(--umoja-primary);
+  border-color: var(--umoja-primary);
+  color: #fff;
+}
+.checkLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  cursor: pointer;
+}
+.notes {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+}
+.submitBtn {
+  align-self: flex-start;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  background: var(--umoja-primary);
+  border-color: var(--umoja-primary);
+  color: #fff;
+}
+.submitBtn:hover:not(:disabled) {
+  background: var(--umoja-primary-hover);
+  border-color: var(--umoja-primary-hover);
+  color: #fff;
+}
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

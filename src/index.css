@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  /* Umoja palette: primary orange, yellow, black; secondary green, brown */
+  --umoja-orange: #b5662e;
+  --umoja-yellow: #e2a63f;
+  --umoja-black: #1f1a16;
+  --umoja-green: #417240;
+  --umoja-green-hover: #356030;
+  --umoja-brown: #64271d;
+  /* Semantic tokens */
+  --umoja-bg: #faf8f5;
+  --umoja-surface: #ffffff;
+  --umoja-surface-alt: #f5f2ed;
+  --umoja-border: #e8e2d9;
+  --umoja-text: var(--umoja-black);
+  --umoja-text-muted: #6b6560;
+  --umoja-header: var(--umoja-black);
+  --umoja-primary: var(--umoja-orange);
+  --umoja-primary-hover: #9a5526;
+  --umoja-danger: var(--umoja-brown);
+  --umoja-danger-hover: #4d1e17;
+  --umoja-accent: var(--umoja-yellow);
+  color: var(--umoja-text);
+  background-color: var(--umoja-bg);
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+#root {
+  min-height: 100vh;
+}
+a {
+  color: var(--umoja-primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--umoja-border);
+  background: var(--umoja-surface);
+  color: var(--umoja-text);
+}
+button:hover {
+  background: var(--umoja-surface-alt);
+  color: var(--umoja-text);
+}
+button.primary {
+  background: var(--umoja-primary);
+  border-color: var(--umoja-primary);
+  color: #fff;
+}
+button.primary:hover {
+  background: var(--umoja-primary-hover);
+  border-color: var(--umoja-primary-hover);
+  color: #fff;
+}
+button.danger {
+  background: var(--umoja-danger);
+  border-color: var(--umoja-danger);
+  color: #fff;
+}
+button.danger:hover {
+  background: var(--umoja-danger-hover);
+  border-color: var(--umoja-danger-hover);
+  color: #fff;
+}
+input, select, textarea {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--umoja-border);
+  background: var(--umoja-bg);
+  color: var(--umoja-text);
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--umoja-accent);
+  outline-offset: 1px;
+}
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
