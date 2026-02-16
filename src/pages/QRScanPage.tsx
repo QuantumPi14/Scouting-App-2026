@@ -1,11 +1,36 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
-import { parseQRPayload, importConfig, importData } from '../qr'
+import { parseQRPayload, importConfig, importData, type ConfigPayload } from '../qr'
 import styles from './QRScanPage.module.css'
 
 const SCAN_FPS = 10
 const MIN_HEIGHT_PX = 280
+
+function mergeConfigParts(parts: ConfigPayload[]): ConfigPayload {
+  const byId = new Map<string, (typeof parts)[0]['competitions'][0][]>()
+  for (const p of parts) {
+    for (const comp of p.competitions || []) {
+      const list = byId.get(comp.id) ?? []
+      list.push(comp)
+      byId.set(comp.id, list)
+    }
+  }
+  const competitions = Array.from(byId.entries()).map(([id, list]) => {
+    const first = list[0]
+    if (list.length === 1) return first
+    const teamNumbers = list.flatMap((c) => c.teamNumbers)
+    const teamNames: Record<number, string> = {}
+    for (const c of list) Object.assign(teamNames, c.teamNames)
+    return { id: first.id, name: first.name, teamNumbers, teamNames }
+  })
+  return {
+    v: 1,
+    type: 'config',
+    competitions,
+    exportedAt: parts[0]?.exportedAt ?? Date.now(),
+  }
+}
 
 export function QRScanPage() {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle')
@@ -13,12 +38,16 @@ export function QRScanPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const lastScannedRef = useRef<string | null>(null)
+  const pendingConfigRef = useRef<Record<number, ConfigPayload>>({})
+  const totalConfigPartsRef = useRef<number | null>(null)
 
   const startScan = () => {
     if (!containerRef.current) return
     setStatus('scanning')
     setMessage('')
     lastScannedRef.current = null
+    pendingConfigRef.current = {}
+    totalConfigPartsRef.current = null
     const html5Qr = new Html5Qrcode(containerRef.current.id)
     scannerRef.current = html5Qr
     html5Qr.start(
@@ -31,7 +60,7 @@ export function QRScanPage() {
         lastScannedRef.current = text
         const payload = parseQRPayload(text)
         if (!payload) {
-          setMessage('QR not recognized. Scan a config or data QR from this app.')
+          setMessage('QR not recognized. Use a config or data QR from this app. If scanning from a screen, get closer so the QR fills the frame.')
           setStatus('error')
           stopScan()
           return
@@ -39,18 +68,45 @@ export function QRScanPage() {
         (async () => {
           try {
             if (payload.type === 'config') {
-              await importConfig(payload)
-              setMessage('Config imported.')
+              const totalParts = payload.totalParts ?? 1
+              const part = payload.part ?? 1
+              if (totalParts <= 1) {
+                await importConfig(payload)
+                setMessage('Config imported.')
+                setStatus('success')
+                stopScan()
+                return
+              }
+              pendingConfigRef.current = { ...pendingConfigRef.current, [part]: payload }
+              totalConfigPartsRef.current = totalParts
+              const collected = pendingConfigRef.current
+              const count = Object.keys(collected).length
+              if (count >= totalParts) {
+                const parts = Array.from({ length: totalParts }, (_, i) => collected[i + 1]).filter(Boolean)
+                if (parts.length === totalParts) {
+                  const merged = mergeConfigParts(parts)
+                  await importConfig(merged)
+                  setMessage('Config imported.')
+                  setStatus('success')
+                  pendingConfigRef.current = {}
+                  totalConfigPartsRef.current = null
+                  stopScan()
+                  return
+                }
+              }
+              setMessage(`Config part ${part} of ${totalParts} scanned. Scan the next QR.`)
+              lastScannedRef.current = null
             } else {
               await importData(payload)
               setMessage('Data imported.')
+              setStatus('success')
+              stopScan()
             }
-            setStatus('success')
           } catch (e) {
             setMessage(String(e))
             setStatus('error')
+            stopScan()
           }
-          stopScan()
         })()
       },
       () => {}
@@ -78,7 +134,8 @@ export function QRScanPage() {
   return (
     <div className={styles.page}>
       <h1>Scan QR</h1>
-      <p>Scan a config QR (from Admin) or data QR to import. Use good lighting and hold the code steady.</p>
+      <p>Scan a config QR (from Admin) or data QR to import.</p>
+      <p className={styles.hint}>Tip: If scanning a QR from another screen (e.g. laptop), make the QR as large as possible and fill your phone&apos;s frame. Avoid glare and hold steady.</p>
       <div ref={containerRef} id="qr-reader" className={styles.reader} style={{ minHeight: status === 'scanning' ? MIN_HEIGHT_PX : 0 }} />
       <div className={styles.actions}>
         {status !== 'scanning' && (

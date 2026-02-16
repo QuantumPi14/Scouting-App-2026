@@ -3,13 +3,46 @@ import { db } from './db'
 import type { Competition, ScoutSubmission } from './types'
 
 const QR_VERSION = 1
-const MAX_QR_BYTES = 2000
+/** Max bytes per config QR. Single comp with many teams is split across multiple QRs. */
+const CONFIG_MAX_QR_BYTES = 900
+/** Reserve for payload wrapper (v, type, exportedAt, part, totalParts) so we know how much room is left for competitions[]. */
+const CONFIG_WRAPPER_BYTES = 100
+/** Keep data QRs smaller for reliable scanning from screens. */
+const DATA_MAX_QR_BYTES = 1200
+
+/** Split one competition into smaller Competition parts (same id/name, chunked team list) so each fits in maxBytes. */
+function splitCompetition(comp: Competition, maxBytes: number): Competition[] {
+  const parts: Competition[] = []
+  const ids = comp.teamNumbers
+  if (ids.length === 0) return [{ id: comp.id, name: comp.name, teamNumbers: [], teamNames: {} }]
+  let start = 0
+  while (start < ids.length) {
+    let end = start
+    while (end < ids.length) {
+      const teamNumbers = ids.slice(start, end + 1)
+      const teamNames: Record<number, string> = {}
+      for (const n of teamNumbers) if (comp.teamNames[n] != null) teamNames[n] = comp.teamNames[n]
+      const c: Competition = { id: comp.id, name: comp.name, teamNumbers, teamNames }
+      if (new Blob([JSON.stringify(c)]).size > maxBytes && end > start) break
+      end += 1
+    }
+    const teamNumbers = ids.slice(start, end)
+    const teamNames: Record<number, string> = {}
+    for (const n of teamNumbers) if (comp.teamNames[n] != null) teamNames[n] = comp.teamNames[n]
+    parts.push({ id: comp.id, name: comp.name, teamNumbers, teamNames })
+    start = end
+  }
+  return parts
+}
 
 export interface ConfigPayload {
   v: number
   type: 'config'
   competitions: Competition[]
   exportedAt: number
+  /** When chunking: 1-based part index (e.g. 1 of 3) */
+  part?: number
+  totalParts?: number
 }
 
 export interface DataPayload {
@@ -20,7 +53,7 @@ export interface DataPayload {
   exportedAt: number
 }
 
-export async function exportConfigQR(): Promise<string> {
+export async function exportConfigQR(): Promise<string[]> {
   const competitions = await db.competitions.toArray()
   const payload: ConfigPayload = {
     v: QR_VERSION,
@@ -29,7 +62,63 @@ export async function exportConfigQR(): Promise<string> {
     exportedAt: Date.now(),
   }
   const json = JSON.stringify(payload)
-  return QRCode.toDataURL(json, { margin: 1, width: 280 })
+  const totalBytes = new Blob([json]).size
+  if (totalBytes <= CONFIG_MAX_QR_BYTES) {
+    const url = await QRCode.toDataURL(json, { margin: 2, width: 320 })
+    return [url]
+  }
+  // Chunk by size; a single competition can be split across multiple QRs (same id/name, chunked team list)
+  const maxCompBytes = CONFIG_MAX_QR_BYTES - CONFIG_WRAPPER_BYTES
+  const chunks: Competition[][] = []
+  let current: Competition[] = []
+  const now = Date.now()
+  for (const comp of competitions) {
+    const compSize = new Blob([JSON.stringify(comp)]).size
+    if (compSize > maxCompBytes) {
+      if (current.length > 0) {
+        chunks.push(current)
+        current = []
+      }
+      const parts = splitCompetition(comp, maxCompBytes)
+      for (const part of parts) chunks.push([part])
+      continue
+    }
+    const trial = [...current, comp]
+    const trialPayload: ConfigPayload = {
+      v: QR_VERSION,
+      type: 'config',
+      competitions: trial,
+      exportedAt: now,
+      part: 1,
+      totalParts: 99,
+    }
+    if (new Blob([JSON.stringify(trialPayload)]).size <= CONFIG_MAX_QR_BYTES) {
+      current = trial
+    } else {
+      if (current.length > 0) {
+        chunks.push(current)
+        current = []
+      }
+      current = [comp]
+    }
+  }
+  if (current.length > 0) chunks.push(current)
+  const totalParts = chunks.length
+  const urls: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const partPayload: ConfigPayload = {
+      v: QR_VERSION,
+      type: 'config',
+      competitions: chunks[i],
+      exportedAt: now,
+      part: i + 1,
+      totalParts,
+    }
+    const str = JSON.stringify(partPayload)
+    const url = await QRCode.toDataURL(str, { margin: 2, width: 320 })
+    urls.push(url)
+  }
+  return urls
 }
 
 /** Strip large fields so payload fits in QR codes (max ~3KB). Auto path images are excluded. */
@@ -54,11 +143,11 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
   }
   const json = JSON.stringify(payload)
   const totalBytes = new Blob([json]).size
-  if (totalBytes <= MAX_QR_BYTES) {
-    const url = await QRCode.toDataURL(json, { margin: 1, width: 320 })
+  if (totalBytes <= DATA_MAX_QR_BYTES) {
+    const url = await QRCode.toDataURL(json, { margin: 2, width: 360 })
     return [url]
   }
-  // Chunk by size so each QR payload stays under the limit
+  // Chunk by size so each QR stays small and scans reliably from a screen
   const urls: string[] = []
   let start = 0
   while (start < forQR.length) {
@@ -74,7 +163,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
         exportedAt: Date.now(),
       }
       const nextStr = JSON.stringify(nextPayload)
-      if (new Blob([nextStr]).size > MAX_QR_BYTES && end > start) break
+      if (new Blob([nextStr]).size > DATA_MAX_QR_BYTES && end > start) break
       chunkJson = nextStr
       end += 1
     }
@@ -89,7 +178,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
       }
       chunkJson = JSON.stringify(single)
     }
-    const url = await QRCode.toDataURL(chunkJson, { margin: 1, width: 320 })
+    const url = await QRCode.toDataURL(chunkJson, { margin: 2, width: 360 })
     urls.push(url)
     start = end
   }
@@ -99,18 +188,23 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
 /** Parse and validate QR payload. Lenient: trims input, accepts v as number or string, normalizes shape. */
 export function parseQRPayload(json: string): ConfigPayload | DataPayload | null {
   try {
-    const raw = typeof json === 'string' ? json.trim() : ''
+    let raw = typeof json === 'string' ? json.trim() : ''
     if (!raw) return null
     const data = JSON.parse(raw)
     const v = data?.v
-    const versionOk = v === QR_VERSION || v === '1'
-    if (!versionOk || (data?.type !== 'config' && data?.type !== 'data')) return null
-    if (data.type === 'config') {
+    const versionOk = v === QR_VERSION || v === '1' || String(v) === '1'
+    const typeStr = data?.type != null ? String(data.type).toLowerCase() : ''
+    if (!versionOk || (typeStr !== 'config' && typeStr !== 'data')) return null
+    if (typeStr === 'config') {
+      const part = typeof data.part === 'number' ? data.part : undefined
+      const totalParts = typeof data.totalParts === 'number' ? data.totalParts : undefined
       return {
         v: QR_VERSION,
         type: 'config',
         competitions: Array.isArray(data.competitions) ? data.competitions : [],
         exportedAt: typeof data.exportedAt === 'number' ? data.exportedAt : Date.now(),
+        ...(part != null && { part }),
+        ...(totalParts != null && { totalParts }),
       }
     }
     return {

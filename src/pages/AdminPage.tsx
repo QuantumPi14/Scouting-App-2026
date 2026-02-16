@@ -149,17 +149,34 @@ export function AdminPage() {
 }
 
 function ConfigQRButton() {
-  const [url, setUrl] = useState<string | null>(null)
+  const [urls, setUrls] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
   const handleExport = async () => {
-    const dataUrl = await exportConfigQR()
-    setUrl(dataUrl)
+    setError(null)
+    setUrls([])
+    try {
+      const list = await exportConfigQR()
+      setUrls(list)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg.includes('too large') ? "Can't generate QR: too much data. Try removing some teams or competitions." : msg)
+    }
   }
   return (
     <div>
       <button type="button" onClick={handleExport}>Generate config QR</button>
-      {url && (
+      {error && <p className={styles.error}>{error}</p>}
+      {urls.length > 0 && (
         <div className={styles.qrPreview}>
-          <img src={url} alt="Config QR code" />
+          {urls.length > 1 && (
+            <p className={styles.qrOrderHint}>Scan in order: first QR, then second, etc. The scanner will show &quot;Part X of Y&quot; as you go.</p>
+          )}
+          {urls.map((url, i) => (
+            <div key={i} className={styles.qrBox}>
+              {urls.length > 1 && <span className={styles.qrLabel}>Part {i + 1} of {urls.length}</span>}
+              <img src={url} alt={urls.length > 1 ? `Config QR ${i + 1}` : 'Config QR code'} />
+            </div>
+          ))}
         </div>
       )}
     </div>

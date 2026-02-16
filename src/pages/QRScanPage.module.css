@@ -3,6 +3,11 @@
   flex-direction: column;
   gap: 1rem;
 }
+.hint {
+  font-size: 0.9rem;
+  color: var(--umoja-text-muted);
+  margin: 0;
+}
 .reader {
   max-width: 100%;
   overflow: hidden;

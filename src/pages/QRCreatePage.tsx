@@ -31,7 +31,10 @@ export function QRCreatePage() {
       setUrls(list)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      setError(message)
+      const friendly = /too (big|large|much)/i.test(message)
+        ? "Can't generate QR: too much data. Try exporting one competition at a time."
+        : message
+      setError(friendly)
       setUrls([])
     } finally {
       setLoading(false)

@@ -60,10 +60,31 @@
 }
 .qrPreview {
   margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 .qrPreview img {
-  max-width: 200px;
+  max-width: 320px;
+  width: 100%;
   height: auto;
+  display: block;
+}
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+.qrOrderHint {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--umoja-text-muted);
+}
+.qrLabel {
+  font-size: 0.9rem;
+  color: var(--umoja-text-muted);
+  font-weight: 600;
 }
 .compList {
   list-style: none;
