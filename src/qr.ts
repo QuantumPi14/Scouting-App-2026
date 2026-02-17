@@ -1,6 +1,6 @@
 import QRCode from 'qrcode'
 import { db } from './db'
-import type { Competition, ScoutSubmission } from './types'
+import type { AutoPathData, Competition, ScoutSubmission } from './types'
 
 const QR_VERSION = 1
 /** Max bytes per config QR. Single comp with many teams is split across multiple QRs. */
@@ -46,11 +46,19 @@ export interface ConfigPayload {
   totalParts?: number
 }
 
+/** One submission split across QRs: this chunk only carries more path points to append. */
+export interface PathContinuationItem {
+  competitionId: string
+  teamNumber: number
+  createdAt: number
+  pathDataAppend: { x: number; y: number }[]
+}
+
 export interface DataPayload {
   v: number
   type: 'data'
   competitionId?: string
-  submissions: ScoutSubmission[]
+  submissions: (ScoutSubmission | PathContinuationItem)[]
   exportedAt: number
   /** When chunked: 1-based part index (e.g. 1 of 4) */
   part?: number
@@ -130,45 +138,87 @@ function submissionsForQR(submissions: ScoutSubmission[]): ScoutSubmission[] {
   return submissions.map(({ autoPathImageData: _, ...rest }) => ({ ...rest }))
 }
 
-/** If one submission is too big for one QR, downsample path and/or truncate notes until payload fits. */
-function fitSubmissionInQR(
+/** Size of a payload with the given submissions array. */
+function dataPayloadSize(
+  submissions: (ScoutSubmission | PathContinuationItem)[],
+  competitionId: string | undefined,
+  exportedAt: number
+): number {
+  const p: DataPayload = {
+    v: QR_VERSION,
+    type: 'data',
+    competitionId,
+    submissions,
+    exportedAt,
+  }
+  return new Blob([JSON.stringify(p)]).size
+}
+
+/**
+ * When one submission doesn't fit in one QR, split it into multiple items: first payload has
+ * the submission with an initial slice of path; following payloads are path continuations.
+ * No data is lost; receiver merges pathDataAppend into the submission.
+ */
+function splitSubmissionIntoChunks(
   sub: ScoutSubmission,
   maxPayloadBytes: number,
   competitionId: string | undefined,
   exportedAt: number
-): ScoutSubmission {
-  const payloadSize = (s: ScoutSubmission) => {
-    const p: DataPayload = {
-      v: QR_VERSION,
-      type: 'data',
-      competitionId,
-      submissions: [s],
-      exportedAt,
+): (ScoutSubmission | PathContinuationItem)[] {
+  const path = sub.autoPathData && Array.isArray(sub.autoPathData.path) ? sub.autoPathData.path : []
+  const markers = sub.autoPathData && Array.isArray(sub.autoPathData.markers) ? sub.autoPathData.markers : []
+  if (path.length === 0) {
+    const trimmed = { ...sub, notes: (sub.notes ?? '').slice(0, 200) }
+    if (dataPayloadSize([trimmed], competitionId, exportedAt) <= maxPayloadBytes) return [trimmed]
+    return [trimmed]
+  }
+  let n = 0
+  for (; n <= path.length; n++) {
+    const slice = path.slice(0, n)
+    const withSlice: ScoutSubmission = {
+      ...sub,
+      autoPathData: { markers, path: slice },
     }
-    return new Blob([JSON.stringify(p)]).size
+    if (dataPayloadSize([withSlice], competitionId, exportedAt) > maxPayloadBytes) break
   }
-  let current = sub
-  for (let step = 1; step <= 20; step++) {
-    if (payloadSize(current) <= maxPayloadBytes) return current
-    const pathData = current.autoPathData
-    if (!pathData || !Array.isArray(pathData.path) || pathData.path.length <= 2) break
-    const path = pathData.path
-    const downsampled = path.filter((_, i) => i % step === 0 || i === path.length - 1)
-    if (downsampled.length === path.length) break
-    current = {
-      ...current,
-      autoPathData: { ...pathData, path: downsampled },
+  n = Math.max(0, n - 1)
+  const firstPath = path.slice(0, n)
+  const restPath = path.slice(n)
+  const result: (ScoutSubmission | PathContinuationItem)[] = []
+  result.push({
+    ...sub,
+    autoPathData: { markers, path: firstPath },
+  })
+  let first = result[0] as ScoutSubmission
+  while (dataPayloadSize([first], competitionId, exportedAt) > maxPayloadBytes && (first.notes?.length ?? 0) > 0) {
+    first = { ...first, notes: (first.notes ?? '').slice(0, Math.max(0, (first.notes?.length ?? 0) - 100)) }
+    result[0] = first
+  }
+  const key = { competitionId: sub.competitionId!, teamNumber: sub.teamNumber, createdAt: sub.createdAt! }
+  let restStart = 0
+  while (restStart < restPath.length) {
+    let restEnd = restStart
+    while (restEnd < restPath.length) {
+      const append = restPath.slice(restStart, restEnd + 1)
+      const cont: PathContinuationItem = {
+        competitionId: key.competitionId,
+        teamNumber: key.teamNumber,
+        createdAt: key.createdAt,
+        pathDataAppend: append,
+      }
+      if (dataPayloadSize([cont], competitionId, exportedAt) > maxPayloadBytes && restEnd > restStart) break
+      restEnd += 1
     }
+    const append = restPath.slice(restStart, restEnd)
+    result.push({
+      competitionId: key.competitionId,
+      teamNumber: key.teamNumber,
+      createdAt: key.createdAt,
+      pathDataAppend: append,
+    })
+    restStart = restEnd
   }
-  if (payloadSize(current) <= maxPayloadBytes) return current
-  for (const maxNotes of [400, 200, 100, 0]) {
-    current = current.notes != null && current.notes.length > maxNotes
-      ? { ...current, notes: current.notes.slice(0, maxNotes) }
-      : current
-    if (payloadSize(current) <= maxPayloadBytes) return current
-  }
-  current = { ...current, autoPathData: undefined }
-  return current
+  return result
 }
 
 export async function exportDataQR(competitionId?: string): Promise<string[]> {
@@ -193,7 +243,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     return [url]
   }
   const now = Date.now()
-  const chunks: ScoutSubmission[][] = []
+  const chunks: (ScoutSubmission | PathContinuationItem)[][] = []
   let start = 0
   while (start < forQR.length) {
     let end = start
@@ -214,8 +264,10 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     }
     const chunk = forQR.slice(start, end)
     if (chunk.length === 1 && new Blob([chunkJson]).size > DATA_MAX_QR_BYTES) {
-      const fitted = fitSubmissionInQR(chunk[0], DATA_MAX_QR_BYTES, competitionId, now)
-      chunks.push([fitted])
+      const parts = splitSubmissionIntoChunks(chunk[0], DATA_MAX_QR_BYTES, competitionId, now)
+      for (const part of parts) {
+        chunks.push([part])
+      }
     } else {
       chunks.push(chunk)
     }
@@ -283,6 +335,15 @@ export async function importConfig(payload: ConfigPayload): Promise<void> {
   }
 }
 
+function isPathContinuation(item: unknown): item is PathContinuationItem {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'pathDataAppend' in item &&
+    Array.isArray((item as PathContinuationItem).pathDataAppend)
+  )
+}
+
 function hasPathData(sub: { autoPathData?: unknown }): boolean {
   const d = sub.autoPathData
   if (!d || typeof d !== 'object') return false
@@ -292,14 +353,30 @@ function hasPathData(sub: { autoPathData?: unknown }): boolean {
 }
 
 export async function importData(payload: DataPayload): Promise<void> {
-  for (const sub of payload.submissions || []) {
+  for (const item of payload.submissions || []) {
+    if (isPathContinuation(item)) {
+      const existing = await db.submissions
+        .where('[competitionId+teamNumber+createdAt]')
+        .equals([item.competitionId, item.teamNumber, item.createdAt])
+        .first()
+      if (existing) {
+        const current = (existing as ScoutSubmission).autoPathData
+        const path = Array.isArray(current?.path) ? current.path : []
+        const merged: AutoPathData = {
+          markers: Array.isArray(current?.markers) ? current.markers : [],
+          path: [...path, ...item.pathDataAppend],
+        }
+        await db.submissions.update(existing.id, { autoPathData: merged })
+      }
+      continue
+    }
+    const sub = item as ScoutSubmission
     if (!sub.competitionId || !Number.isFinite(sub.teamNumber) || !sub.scoutName || !sub.createdAt) continue
     const existing = await db.submissions
       .where('[competitionId+teamNumber+createdAt]')
       .equals([sub.competitionId, sub.teamNumber, sub.createdAt])
       .first()
     if (existing) {
-      // Merge in path data from QR so re-scan or sync from another device shows auto path
       if (hasPathData(sub) && (existing as ScoutSubmission).autoPathData !== sub.autoPathData) {
         await db.submissions.update(existing.id, { autoPathData: sub.autoPathData })
       }

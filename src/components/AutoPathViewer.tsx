@@ -59,19 +59,21 @@ export function AutoPathViewer({
     ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, size.w, size.h)
     const W = size.w
     const H = size.h
-    if (pathData.path.length >= 2) {
+    const path = Array.isArray(pathData.path) ? pathData.path : []
+    const markers = Array.isArray(pathData.markers) ? pathData.markers : []
+    if (path.length >= 2) {
       ctx.strokeStyle = '#00ff00'
       ctx.lineWidth = Math.max(2, Math.floor(W / 200))
       ctx.lineCap = 'round'
       ctx.beginPath()
-      ctx.moveTo(pathData.path[0].x * W, pathData.path[0].y * H)
-      for (let i = 1; i < pathData.path.length; i++) {
-        ctx.lineTo(pathData.path[i].x * W, pathData.path[i].y * H)
+      ctx.moveTo(path[0].x * W, path[0].y * H)
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x * W, path[i].y * H)
       }
       ctx.stroke()
     }
     const r = Math.max(4, Math.floor(W / 80))
-    pathData.markers.forEach((mark) => {
+    markers.forEach((mark) => {
       const mx = mark.x * W
       const my = mark.y * H
       ctx.fillStyle = MARKER_COLORS[mark.type]

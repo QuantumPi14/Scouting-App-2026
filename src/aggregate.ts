@@ -94,7 +94,7 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
   const autoPathImages = submissions.map((s) => s.autoPathImageData).filter((d): d is string => nonEmpty(d ?? ''))
   const hasPathDataContent = (item: { pathData?: AutoPathData | null }) => {
     const d = item.pathData
-    if (!d) return false
+    if (!d || typeof d !== 'object') return false
     const markers = Array.isArray(d.markers) ? d.markers : []
     const path = Array.isArray(d.path) ? d.path : []
     return markers.length > 0 || path.length > 0
