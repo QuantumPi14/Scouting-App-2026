@@ -8,7 +8,7 @@ const CONFIG_MAX_QR_BYTES = 900
 /** Reserve for payload wrapper (v, type, exportedAt, part, totalParts) so we know how much room is left for competitions[]. */
 const CONFIG_WRAPPER_BYTES = 100
 /** Keep data QRs small so the QR library can encode them (avoid code length overflow). */
-const DATA_MAX_QR_BYTES = 900
+const DATA_MAX_QR_BYTES = 700
 const DATA_QR_OPTIONS = { margin: 2, width: 360, errorCorrectionLevel: 'L' as const }
 
 /** Split one competition into smaller Competition parts (same id/name, chunked team list) so each fits in maxBytes. */
@@ -127,7 +127,7 @@ function submissionsForQR(submissions: ScoutSubmission[]): ScoutSubmission[] {
   return submissions.map(({ autoPathImageData: _, ...rest }) => ({ ...rest }))
 }
 
-/** If one submission is too big for one QR, downsample its path so the full data payload fits in maxPayloadBytes. */
+/** If one submission is too big for one QR, downsample path and/or truncate notes until payload fits. */
 function fitSubmissionInQR(
   sub: ScoutSubmission,
   maxPayloadBytes: number,
@@ -148,15 +148,23 @@ function fitSubmissionInQR(
   for (let step = 1; step <= 20; step++) {
     if (payloadSize(current) <= maxPayloadBytes) return current
     const pathData = current.autoPathData
-    if (!pathData || !Array.isArray(pathData.path) || pathData.path.length <= 2) return current
+    if (!pathData || !Array.isArray(pathData.path) || pathData.path.length <= 2) break
     const path = pathData.path
     const downsampled = path.filter((_, i) => i % step === 0 || i === path.length - 1)
-    if (downsampled.length === path.length) return current
+    if (downsampled.length === path.length) break
     current = {
       ...current,
       autoPathData: { ...pathData, path: downsampled },
     }
   }
+  if (payloadSize(current) <= maxPayloadBytes) return current
+  for (const maxNotes of [400, 200, 100, 0]) {
+    current = current.notes != null && current.notes.length > maxNotes
+      ? { ...current, notes: current.notes.slice(0, maxNotes) }
+      : current
+    if (payloadSize(current) <= maxPayloadBytes) return current
+  }
+  current = { ...current, autoPathData: undefined }
   return current
 }
 
@@ -201,14 +209,14 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
       chunkJson = nextStr
       end += 1
     }
-    if (!chunkJson && end === start) {
-      end = start + 1
-      const singleSub = fitSubmissionInQR(forQR[start], DATA_MAX_QR_BYTES, competitionId, now)
+    const chunk = forQR.slice(start, end)
+    if (chunk.length === 1 && new Blob([chunkJson]).size > DATA_MAX_QR_BYTES) {
+      const fitted = fitSubmissionInQR(chunk[0], DATA_MAX_QR_BYTES, competitionId, now)
       const single: DataPayload = {
         v: QR_VERSION,
         type: 'data',
         competitionId,
-        submissions: [singleSub],
+        submissions: [fitted],
         exportedAt: now,
       }
       chunkJson = JSON.stringify(single)
