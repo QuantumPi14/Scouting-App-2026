@@ -7,8 +7,9 @@ const QR_VERSION = 1
 const CONFIG_MAX_QR_BYTES = 900
 /** Reserve for payload wrapper (v, type, exportedAt, part, totalParts) so we know how much room is left for competitions[]. */
 const CONFIG_WRAPPER_BYTES = 100
-/** Keep data QRs smaller for reliable scanning from screens. */
-const DATA_MAX_QR_BYTES = 1200
+/** Keep data QRs small so the QR library can encode them (avoid code length overflow). */
+const DATA_MAX_QR_BYTES = 900
+const DATA_QR_OPTIONS = { margin: 2, width: 360, errorCorrectionLevel: 'L' as const }
 
 /** Split one competition into smaller Competition parts (same id/name, chunked team list) so each fits in maxBytes. */
 function splitCompetition(comp: Competition, maxBytes: number): Competition[] {
@@ -126,6 +127,39 @@ function submissionsForQR(submissions: ScoutSubmission[]): ScoutSubmission[] {
   return submissions.map(({ autoPathImageData: _, ...rest }) => ({ ...rest }))
 }
 
+/** If one submission is too big for one QR, downsample its path so the full data payload fits in maxPayloadBytes. */
+function fitSubmissionInQR(
+  sub: ScoutSubmission,
+  maxPayloadBytes: number,
+  competitionId: string | undefined,
+  exportedAt: number
+): ScoutSubmission {
+  const payloadSize = (s: ScoutSubmission) => {
+    const p: DataPayload = {
+      v: QR_VERSION,
+      type: 'data',
+      competitionId,
+      submissions: [s],
+      exportedAt,
+    }
+    return new Blob([JSON.stringify(p)]).size
+  }
+  let current = sub
+  for (let step = 1; step <= 20; step++) {
+    if (payloadSize(current) <= maxPayloadBytes) return current
+    const pathData = current.autoPathData
+    if (!pathData || !Array.isArray(pathData.path) || pathData.path.length <= 2) return current
+    const path = pathData.path
+    const downsampled = path.filter((_, i) => i % step === 0 || i === path.length - 1)
+    if (downsampled.length === path.length) return current
+    current = {
+      ...current,
+      autoPathData: { ...pathData, path: downsampled },
+    }
+  }
+  return current
+}
+
 export async function exportDataQR(competitionId?: string): Promise<string[]> {
   let submissions: ScoutSubmission[]
   if (competitionId) {
@@ -144,10 +178,10 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
   const json = JSON.stringify(payload)
   const totalBytes = new Blob([json]).size
   if (totalBytes <= DATA_MAX_QR_BYTES) {
-    const url = await QRCode.toDataURL(json, { margin: 2, width: 360 })
+    const url = await QRCode.toDataURL(json, DATA_QR_OPTIONS)
     return [url]
   }
-  // Chunk by size so each QR stays small and scans reliably from a screen
+  const now = Date.now()
   const urls: string[] = []
   let start = 0
   while (start < forQR.length) {
@@ -160,7 +194,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
         type: 'data',
         competitionId,
         submissions: next,
-        exportedAt: Date.now(),
+        exportedAt: now,
       }
       const nextStr = JSON.stringify(nextPayload)
       if (new Blob([nextStr]).size > DATA_MAX_QR_BYTES && end > start) break
@@ -169,16 +203,17 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     }
     if (!chunkJson && end === start) {
       end = start + 1
+      const singleSub = fitSubmissionInQR(forQR[start], DATA_MAX_QR_BYTES, competitionId, now)
       const single: DataPayload = {
         v: QR_VERSION,
         type: 'data',
         competitionId,
-        submissions: forQR.slice(start, end),
-        exportedAt: Date.now(),
+        submissions: [singleSub],
+        exportedAt: now,
       }
       chunkJson = JSON.stringify(single)
     }
-    const url = await QRCode.toDataURL(chunkJson, { margin: 2, width: 360 })
+    const url = await QRCode.toDataURL(chunkJson, DATA_QR_OPTIONS)
     urls.push(url)
     start = end
   }
