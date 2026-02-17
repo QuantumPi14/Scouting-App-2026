@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
-import { parseQRPayload, importConfig, importData, type ConfigPayload } from '../qr'
+import { parseQRPayload, importConfig, importData, type ConfigPayload, type DataPayload } from '../qr'
 import styles from './QRScanPage.module.css'
 
 const SCAN_FPS = 10
@@ -40,6 +40,8 @@ export function QRScanPage() {
   const lastScannedRef = useRef<string | null>(null)
   const pendingConfigRef = useRef<Record<number, ConfigPayload>>({})
   const totalConfigPartsRef = useRef<number | null>(null)
+  const pendingDataPartsRef = useRef<Record<number, DataPayload>>({})
+  const totalDataPartsRef = useRef<number | null>(null)
 
   const startScan = () => {
     if (!containerRef.current) return
@@ -48,6 +50,8 @@ export function QRScanPage() {
     lastScannedRef.current = null
     pendingConfigRef.current = {}
     totalConfigPartsRef.current = null
+    pendingDataPartsRef.current = {}
+    totalDataPartsRef.current = null
     const html5Qr = new Html5Qrcode(containerRef.current.id)
     scannerRef.current = html5Qr
     html5Qr.start(
@@ -97,10 +101,40 @@ export function QRScanPage() {
               setMessage(`Config part ${part} of ${totalParts} scanned. Scan the next QR.`)
               lastScannedRef.current = null
             } else {
-              await importData(payload)
-              setMessage('Data imported.')
-              setStatus('success')
-              stopScan()
+              const totalParts = payload.totalParts ?? 1
+              const part = payload.part ?? 1
+              if (totalParts <= 1) {
+                await importData(payload)
+                setMessage('Data imported.')
+                setStatus('success')
+                stopScan()
+                return
+              }
+              pendingDataPartsRef.current = { ...pendingDataPartsRef.current, [part]: payload }
+              totalDataPartsRef.current = totalParts
+              const collected = pendingDataPartsRef.current
+              const count = Object.keys(collected).length
+              if (count >= totalParts) {
+                const parts = Array.from({ length: totalParts }, (_, i) => collected[i + 1]).filter(Boolean)
+                if (parts.length === totalParts) {
+                  const merged: DataPayload = {
+                    v: payload.v,
+                    type: 'data',
+                    competitionId: payload.competitionId,
+                    submissions: parts.flatMap((p) => p.submissions ?? []),
+                    exportedAt: parts[0]?.exportedAt ?? Date.now(),
+                  }
+                  await importData(merged)
+                  setMessage('Data imported.')
+                  setStatus('success')
+                  pendingDataPartsRef.current = {}
+                  totalDataPartsRef.current = null
+                  stopScan()
+                  return
+                }
+              }
+              setMessage(`Data part ${part} of ${totalParts} scanned. Scan the next QR.`)
+              lastScannedRef.current = null
             }
           } catch (e) {
             setMessage(String(e))

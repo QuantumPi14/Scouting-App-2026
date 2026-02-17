@@ -52,6 +52,9 @@ export interface DataPayload {
   competitionId?: string
   submissions: ScoutSubmission[]
   exportedAt: number
+  /** When chunked: 1-based part index (e.g. 1 of 4) */
+  part?: number
+  totalParts?: number
 }
 
 export async function exportConfigQR(): Promise<string[]> {
@@ -190,7 +193,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     return [url]
   }
   const now = Date.now()
-  const urls: string[] = []
+  const chunks: ScoutSubmission[][] = []
   let start = 0
   while (start < forQR.length) {
     let end = start
@@ -212,18 +215,26 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     const chunk = forQR.slice(start, end)
     if (chunk.length === 1 && new Blob([chunkJson]).size > DATA_MAX_QR_BYTES) {
       const fitted = fitSubmissionInQR(chunk[0], DATA_MAX_QR_BYTES, competitionId, now)
-      const single: DataPayload = {
-        v: QR_VERSION,
-        type: 'data',
-        competitionId,
-        submissions: [fitted],
-        exportedAt: now,
-      }
-      chunkJson = JSON.stringify(single)
+      chunks.push([fitted])
+    } else {
+      chunks.push(chunk)
     }
-    const url = await QRCode.toDataURL(chunkJson, DATA_QR_OPTIONS)
-    urls.push(url)
     start = end
+  }
+  const totalParts = chunks.length
+  const urls: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const partPayload: DataPayload = {
+      v: QR_VERSION,
+      type: 'data',
+      competitionId,
+      submissions: chunks[i],
+      exportedAt: now,
+      ...(totalParts > 1 && { part: i + 1, totalParts }),
+    }
+    const str = JSON.stringify(partPayload)
+    const url = await QRCode.toDataURL(str, DATA_QR_OPTIONS)
+    urls.push(url)
   }
   return urls
 }
@@ -250,12 +261,16 @@ export function parseQRPayload(json: string): ConfigPayload | DataPayload | null
         ...(totalParts != null && { totalParts }),
       }
     }
+    const part = typeof data.part === 'number' ? data.part : undefined
+    const totalParts = typeof data.totalParts === 'number' ? data.totalParts : undefined
     return {
       v: QR_VERSION,
       type: 'data',
       competitionId: data.competitionId,
       submissions: Array.isArray(data.submissions) ? data.submissions : [],
       exportedAt: typeof data.exportedAt === 'number' ? data.exportedAt : Date.now(),
+      ...(part != null && { part }),
+      ...(totalParts != null && { totalParts }),
     }
   } catch {
     return null
