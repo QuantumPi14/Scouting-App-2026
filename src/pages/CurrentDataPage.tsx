@@ -45,6 +45,7 @@ export function CurrentDataPage() {
   const showAggregate = viewMode === 'avg' || !selectedSubmission
   const dataAgg = showAggregate ? aggregate : null
   const dataSingle = showAggregate ? null : selectedSubmission
+  const malfunctionThisMatch = Number.isFinite(matchNum) ? submissions.some((s) => s.malfunction === true) : null
   const galleryItems: { image?: string; pathData?: AutoPathData }[] = dataAgg?.autoPathItems?.length
     ? dataAgg.autoPathItems
     : dataSingle
@@ -90,7 +91,7 @@ export function CurrentDataPage() {
 
       {dataAgg && (
         <>
-          <DataDisplay agg={dataAgg} single={null} />
+          <DataDisplay agg={dataAgg} single={null} malfunctionThisMatch={malfunctionThisMatch} />
           <div className={styles.notesSection}><button type="button" onClick={() => setNotesOpen(true)}>Notes</button></div>
           {galleryItems.length > 0 && (
             <div className={styles.gallery}>
@@ -112,7 +113,7 @@ export function CurrentDataPage() {
       )}
       {dataSingle && (
         <>
-          <DataDisplay agg={null} single={dataSingle} />
+          <DataDisplay agg={null} single={dataSingle} malfunctionThisMatch={null} />
           <div className={styles.notesSection}><button type="button" onClick={() => setNotesOpen(true)}>Notes</button></div>
           {galleryItems.length > 0 && (
             <div className={styles.gallery}>
@@ -175,7 +176,15 @@ export function CurrentDataPage() {
   )
 }
 
-function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: ScoutSubmission | null }) {
+function DataDisplay({
+  agg,
+  single,
+  malfunctionThisMatch,
+}: {
+  agg: TeamAggregate | null
+  single: ScoutSubmission | null
+  malfunctionThisMatch: boolean | null
+}) {
   if (agg) {
     return (
       <div className={styles.dataSection}>
@@ -197,6 +206,10 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <p>Move while shooting: {agg.game.moveWhileShooting ?? '—'}</p>
         <p>Pick up while shooting: {agg.game.pickUpWhileShooting == null ? '—' : agg.game.pickUpWhileShooting ? 'Yes' : 'No'}</p>
         <p>Shot accuracy: {agg.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent}%` : '—'}</p>
+        <p>
+          Malfunction:{' '}
+          {malfunctionThisMatch !== null ? (malfunctionThisMatch ? 'Yes' : 'No') : `${agg.game.malfunctionMatchCount} match(es)`}
+        </p>
       </div>
     )
   }
@@ -222,6 +235,7 @@ function DataDisplay({ agg, single }: { agg: TeamAggregate | null; single: Scout
         <p>Move while shooting: {single.moveWhileShooting ?? '—'}</p>
         <p>Pick up while shooting: {single.pickUpWhileShooting == null ? '—' : single.pickUpWhileShooting ? 'Yes' : 'No'}</p>
         <p>Shot accuracy: {single.shotAccuracyPercent != null ? `${single.shotAccuracyPercent}%` : '—'}</p>
+        <p>Malfunction: {single.malfunction == null ? '—' : single.malfunction ? 'Yes' : 'No'}</p>
       </div>
     )
   }

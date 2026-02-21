@@ -35,6 +35,7 @@ export interface ScoutSubmission {
   moveWhileShooting?: 'yes' | 'kinda' | 'no'
   pickUpWhileShooting?: boolean
   shotAccuracyPercent?: number // 0, 10, 20, ..., 100
+  malfunction?: boolean
 
   notes?: string
   autoPathImageData?: string // base64 PNG (not sent in QR; use autoPathData to sync)
@@ -81,6 +82,8 @@ export interface TeamAggregate {
     moveWhileShooting: string | null
     pickUpWhileShooting: boolean | null
     shotAccuracyPercent: number | null
+    /** Number of matches (distinct matchNumbers) where at least one submission had malfunction. */
+    malfunctionMatchCount: number
   }
   autoPathImages: string[]
   /** One per submission that has an auto path (image and/or pathData). Enables replay from coordinates when no image. */

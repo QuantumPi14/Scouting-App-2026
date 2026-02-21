@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import type { SearchType } from './types'
+import { ensureDefaultCompetitions } from './defaultCompetitions'
 
 const ADMIN_SESSION_KEY = 'scouting_admin_session'
 
@@ -32,6 +33,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       setIsAdminLoggedIn(false)
     }
+  }, [])
+
+  useEffect(() => {
+    ensureDefaultCompetitions()
   }, [])
 
   const adminLogin = useCallback((password: string): boolean => {

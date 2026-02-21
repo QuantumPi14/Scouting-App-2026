@@ -38,6 +38,7 @@ export function AddDataPage() {
   const [moveWhileShooting, setMoveWhileShooting] = useState<ScoutSubmission['moveWhileShooting']>(undefined)
   const [pickUpWhileShooting, setPickUpWhileShooting] = useState<boolean | undefined>(undefined)
   const [shotAccuracyPercent, setShotAccuracyPercent] = useState<number | ''>('')
+  const [malfunction, setMalfunction] = useState<boolean | undefined>(undefined)
   const [notes, setNotes] = useState('')
   const [autoPathImageData, setAutoPathImageData] = useState<string | undefined>(undefined)
   const [autoPathData, setAutoPathData] = useState<AutoPathData | undefined>(undefined)
@@ -57,7 +58,8 @@ export function AddDataPage() {
     intakeReliability != null ||
     moveWhileShooting != null ||
     pickUpWhileShooting !== undefined ||
-    shotAccuracyPercent !== ''
+    shotAccuracyPercent !== '' ||
+    malfunction !== undefined
 
   const canSubmit = scoutName.trim() && (!hasAnyGameStat || (matchNumber !== '' && Number.isFinite(Number(matchNumber))))
 
@@ -86,6 +88,7 @@ export function AddDataPage() {
       moveWhileShooting,
       pickUpWhileShooting,
       shotAccuracyPercent: shotAccuracyPercent === '' ? undefined : Number(shotAccuracyPercent),
+      malfunction,
       notes: notes.trim() || undefined,
       autoPathImageData,
       autoPathData,
@@ -220,6 +223,17 @@ export function AddDataPage() {
               <option key={o} value={o}>{o}%</option>
             ))}
           </select>
+          <label>Malfunction?</label>
+          <div className={styles.boolRow}>
+            <button
+              type="button"
+              className={malfunction === true ? styles.active : ''}
+              onClick={() => setMalfunction(malfunction === true ? false : true)}
+              title={malfunction === true ? 'Robot malfunctioned this match (tap to clear)' : 'Tap if robot malfunctioned this match'}
+            >
+              {malfunction === true ? 'Malfunction (yes)' : 'Malfunction (no)'}
+            </button>
+          </div>
         </div>
       </section>
 

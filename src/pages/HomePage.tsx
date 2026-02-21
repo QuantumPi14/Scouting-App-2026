@@ -7,7 +7,7 @@ import type { Competition } from '../types'
 import type { ScoutSubmission } from '../types'
 import styles from './HomePage.module.css'
 
-type SortKey = 'pts' | 'hubPts' | 'shotPct' | null
+type SortKey = 'pts' | 'hubPts' | 'shotPct' | 'malfunction' | null
 type SortDir = 'asc' | 'desc' | null
 
 const CLIMB_OPTIONS = ["can't climb", 'L1', 'L2', 'L3'] as const
@@ -29,6 +29,8 @@ export function HomePage() {
   const [moveShootFilter, setMoveShootFilter] = useState<string>('')
   const [pickUpShootFilter, setPickUpShootFilter] = useState<string>('')
   const [shotPercentFilter, setShotPercentFilter] = useState<string>('')
+  const [malfunctionFilter, setMalfunctionFilter] = useState<string>('')
+  const [malfunctionMatchFilter, setMalfunctionMatchFilter] = useState<string>('')
 
   useEffect(() => {
     db.competitions.toArray().then(setCompetitions)
@@ -106,8 +108,24 @@ export function HomePage() {
       const want = parseInt(shotPercentFilter, 10)
       list = list.filter(({ agg }) => agg?.game.shotAccuracyPercent != null && agg.game.shotAccuracyPercent === want)
     }
+    if (malfunctionFilter) {
+      const want = malfunctionFilter
+      list = list.filter(({ agg }) => {
+        const n = agg?.game.malfunctionMatchCount ?? 0
+        if (want === '3+') return n >= 3
+        const num = parseInt(want, 10)
+        return Number.isFinite(num) && n === num
+      })
+    }
+    if (searchType === 'match' && malfunctionMatchFilter) {
+      if (malfunctionMatchFilter === 'yes') {
+        list = list.filter(({ agg }) => (agg?.game.malfunctionMatchCount ?? 0) > 0)
+      } else if (malfunctionMatchFilter === 'no') {
+        list = list.filter(({ agg }) => (agg?.game.malfunctionMatchCount ?? 0) === 0)
+      }
+    }
     return list
-  }, [filteredTeamsAndAggregates, climbFilter, climbRelFilter, climbSpotFilter, turretFilter, moveShootFilter, pickUpShootFilter, shotPercentFilter])
+  }, [filteredTeamsAndAggregates, climbFilter, climbRelFilter, climbSpotFilter, turretFilter, moveShootFilter, pickUpShootFilter, shotPercentFilter, malfunctionFilter, malfunctionMatchFilter, searchType])
 
   const sortedTeams = useMemo(() => {
     const list = [...filterByClimbAndRel]
@@ -126,6 +144,9 @@ export function HomePage() {
       } else if (sortKey === 'shotPct') {
         valA = aggA?.game.shotAccuracyPercent ?? null
         valB = aggB?.game.shotAccuracyPercent ?? null
+      } else if (sortKey === 'malfunction') {
+        valA = aggA?.game.malfunctionMatchCount ?? null
+        valB = aggB?.game.malfunctionMatchCount ?? null
       }
       if (valA == null && valB == null) return a.teamNumber - b.teamNumber
       if (valA == null) return sortDir === 'asc' ? 1 : -1
@@ -266,6 +287,40 @@ export function HomePage() {
                       {SHOT_ACCURACY_OPTIONS.map((o) => <option key={o} value={String(o)}>{o}%</option>)}
                     </select>
                   </th>
+                  <th
+                    className={`${styles.filterTh} ${styles.sortable}`}
+                    onClick={() => handleSort('malfunction')}
+                    title="Click: high→low, again low→high, again clear"
+                  >
+                    <label className={styles.filterLabel}>Malfunction {sortKey === 'malfunction' && (sortDir === 'desc' ? '↓' : '↑')}</label>
+                    {searchType === 'team' ? (
+                      <select
+                        value={malfunctionFilter}
+                        onChange={(e) => setMalfunctionFilter(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={styles.filterSelect}
+                        title="Filter by malfunction match count"
+                      >
+                        <option value="">All</option>
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3+">3+</option>
+                      </select>
+                    ) : (
+                      <select
+                        value={malfunctionMatchFilter}
+                        onChange={(e) => setMalfunctionMatchFilter(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={styles.filterSelect}
+                        title="Filter by malfunction in this match"
+                      >
+                        <option value="">All</option>
+                        <option value="yes">Malfunction only</option>
+                        <option value="no">No malfunction</option>
+                      </select>
+                    )}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -286,6 +341,7 @@ export function HomePage() {
                     <td>{agg?.game.moveWhileShooting ?? '—'}</td>
                     <td>{agg?.game.pickUpWhileShooting == null ? '—' : agg?.game.pickUpWhileShooting ? 'Yes' : 'No'}</td>
                     <td>{agg?.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent}%` : '—'}</td>
+                    <td>{agg?.game.malfunctionMatchCount != null ? agg.game.malfunctionMatchCount : '—'}</td>
                   </tr>
                 ))}
               </tbody>

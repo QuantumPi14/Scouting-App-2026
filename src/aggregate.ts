@@ -89,6 +89,11 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
       return sorted[0].pickUpWhileShooting ?? null
     })(),
     shotAccuracyPercent: avg(numericValues(submissions.map((s) => s.shotAccuracyPercent))) ?? null,
+    malfunctionMatchCount: (() => {
+      const withMalfunction = submissions.filter((s) => s.matchNumber != null && s.malfunction === true)
+      const matchNumbers = new Set(withMalfunction.map((s) => s.matchNumber!))
+      return matchNumbers.size
+    })(),
   }
 
   const autoPathImages = submissions.map((s) => s.autoPathImageData).filter((d): d is string => nonEmpty(d ?? ''))
