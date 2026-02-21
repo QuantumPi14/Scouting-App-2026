@@ -133,9 +133,32 @@ export async function exportConfigQR(): Promise<string[]> {
   return urls
 }
 
-/** Strip large fields so payload fits in QR codes. We keep autoPathData (coordinates) and drop autoPathImageData (base64 image). */
-function submissionsForQR(submissions: ScoutSubmission[]): ScoutSubmission[] {
+export type ExportDataMode = 'full' | 'scouting' | 'autopath'
+
+/** Strip large fields for QR. full: drop image keep path; scouting: drop image and path; autopath: minimal item with only path. */
+function submissionsForQR(submissions: ScoutSubmission[], mode: ExportDataMode): (ScoutSubmission | PathContinuationItem)[] {
+  if (mode === 'scouting') {
+    return submissions.map(({ autoPathImageData: _1, autoPathData: _2, ...rest }) => ({ ...rest }))
+  }
+  if (mode === 'autopath') {
+    return submissions
+      .filter((s) => s.autoPathData && ((Array.isArray(s.autoPathData.path) && s.autoPathData.path.length > 0) || (Array.isArray(s.autoPathData.markers) && s.autoPathData.markers!.length > 0)))
+      .map((s) => ({
+        competitionId: s.competitionId,
+        teamNumber: s.teamNumber,
+        scoutName: s.scoutName,
+        createdAt: s.createdAt!,
+        autoPathData: s.autoPathData!,
+      })) as ScoutSubmission[]
+  }
   return submissions.map(({ autoPathImageData: _, ...rest }) => ({ ...rest }))
+}
+
+export interface ExportDataOptions {
+  /** If provided, only export submissions for these team numbers (within the competition). */
+  teamNumbers?: number[]
+  /** full = scouting + path coords (default); scouting = form data only; autopath = path data only. */
+  mode?: ExportDataMode
 }
 
 /** Size of a payload with the given submissions array. */
@@ -221,14 +244,20 @@ function splitSubmissionIntoChunks(
   return result
 }
 
-export async function exportDataQR(competitionId?: string): Promise<string[]> {
+export async function exportDataQR(competitionId?: string, options?: ExportDataOptions): Promise<string[]> {
   let submissions: ScoutSubmission[]
   if (competitionId) {
     submissions = await db.submissions.where('competitionId').equals(competitionId).toArray() as ScoutSubmission[]
   } else {
     submissions = await db.submissions.toArray() as ScoutSubmission[]
   }
-  const forQR = submissionsForQR(submissions)
+  const teamNumbers = options?.teamNumbers
+  if (teamNumbers != null && teamNumbers.length > 0) {
+    const set = new Set(teamNumbers)
+    submissions = submissions.filter((s) => set.has(s.teamNumber))
+  }
+  const mode = options?.mode ?? 'full'
+  const forQR = submissionsForQR(submissions, mode)
   const payload: DataPayload = {
     v: QR_VERSION,
     type: 'data',
@@ -264,7 +293,7 @@ export async function exportDataQR(competitionId?: string): Promise<string[]> {
     }
     const chunk = forQR.slice(start, end)
     if (chunk.length === 1 && new Blob([chunkJson]).size > DATA_MAX_QR_BYTES) {
-      const parts = splitSubmissionIntoChunks(chunk[0], DATA_MAX_QR_BYTES, competitionId, now)
+      const parts = splitSubmissionIntoChunks(chunk[0] as ScoutSubmission, DATA_MAX_QR_BYTES, competitionId, now)
       for (const part of parts) {
         chunks.push([part])
       }
