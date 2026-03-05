@@ -1,30 +1,39 @@
-# Umoja Robotics Scouting App v0.0
+# Umoja Robotics Scouting App (2026)
 
-FRC scouting app that works offline. Data can be shared via QR codes.
+Offline‑first web app for FRC‑style scouting, built for use by many scouts across multiple events. It runs entirely in the browser (PWA) and stores data locally, with QR codes and JSON files for sharing between devices.
 
-## Setup
+## Live app & Admin
 
-1. `npm install`
-2. Add the 2026 field image: place your field map image at **`public/field-2026.png`** (same image you provided for the auto path feature).
-3. **Admin password**: edit **`src/admin/config.ts`** and set `ADMIN_PASSWORD` to your chosen password.
-4. `npm run dev` to start the dev server.
+- **Admin password**: `Georgio`
+- Use Admin to:
+  - Add/edit competitions and team lists
+  - Load/clear demo “Test” data for practice
+  - Export config QR to give everyone the same competitions/teams
 
-## Build & deploy
+## Key features
 
-- `npm run build` ? output in `dist/`
-- Deploy the `dist/` folder to any static host (Vercel, Netlify, GitHub Pages, etc.). Use HTTPS.
-- Share the app URL with your team. They open it once (ideally on Wi?Fi), then can use it offline.
-- **Update app**: After you redeploy, users get the new version when they tap **Update app** in the header.
+- **Offline‑first PWA** – works in the stands with no network.
+- **Scouting form**
+  - Pit stats (drivetrain, climb info, intake, etc.)
+  - Game stats with 2 periods of hub scoring (robot + human player)
+  - Auto path markers on a field image (start/end/waypoints) with gallery replay.
+- **Data sharing**
+  - Chunked **QR codes** for config + scouting data (v2 CBOR payload, header+records).
+  - **JSON export/import**:
+    - From Create QR page: export filtered scouting data as a `.json` file.
+    - On Scan QR page: “Import JSON file” to merge a `.json` export.
+    - On iOS, JSON export works with the system share sheet (e.g. AirDrop).
 
-## First use
+## Getting started (local dev)
 
-1. Open **Admin**, enter the password, then add a competition (e.g. Durham) and paste team numbers (and optional names), one per line: `7712, Umoja` or `7712`. Save.
-2. On the home page, select the competition, then search by team number or match number. Open a team ? **Current data** or **Add data**.
-3. **Create QR** (from Home) exports scout data. **Scan QR** imports data. From Admin, **Export config QR** exports only competitions and team lists for others to scan.
+Requires Node 18+.
 
-## After you deploy
+```bash
+git clone https://github.com/<your-org-or-user>/Scouting-App-2026.git
+cd Scouting-App-2026
+npm install
+npm run dev
 
-- Host the `dist/` folder on a static host with HTTPS (e.g. Vercel, Netlify).
-- Share the app URL with your team. They open it once (on Wi-Fi), then can use it offline.
-- To change the **admin password**, edit `src/admin/config.ts` (see `ADMIN_PASSWORD`) and redeploy.
-- After you redeploy a new version, users see **Update app** in the header when a new version is available; they tap it to refresh.
+You can make your own edits like changing the password, editing data parameters, etc by cloning and running the app yourself. 
+
+This just means you'd  have to set up the deployment as well (if you don't know how, use vercel, it's free).
