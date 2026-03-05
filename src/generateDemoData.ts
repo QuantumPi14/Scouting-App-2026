@@ -17,7 +17,49 @@ const CLIMBS: ScoutSubmission['climb'][] = ['L1', 'L2', 'L3', "can't climb"]
 const INTAKE_TYPES: ScoutSubmission['intakeType'][] = ['one at a time', 'multiple']
 const RELIABILITY: ScoutSubmission['climbReliability'][] = ['unreliable', 'semi-reliable', 'reliable']
 const MOVE_WHILE: ScoutSubmission['moveWhileShooting'][] = ['yes', 'kinda', 'no']
-const SHOT_BUCKETS: number[] = [0, 20, 40, 60, 80, 90, 95]
+
+// Performance tiers for demo realism: a few great teams, a few bad ones, rest in the middle.
+type PerformanceTier = 'elite' | 'good' | 'average' | 'weak'
+
+// Explicitly chosen so strength is NOT correlated with team number ordering.
+const ELITE_TEAMS = new Set<number>([100, 112, 119])
+const GOOD_TEAMS = new Set<number>([101, 105, 111, 123, 126])
+const WEAK_TEAMS = new Set<number>([104, 110, 115, 120, 125])
+
+function tierForTeamNumber(teamNumber: number): PerformanceTier {
+  if (ELITE_TEAMS.has(teamNumber)) return 'elite'
+  if (GOOD_TEAMS.has(teamNumber)) return 'good'
+  if (WEAK_TEAMS.has(teamNumber)) return 'weak'
+  return 'average'
+}
+
+function shotPctForTier(tier: PerformanceTier, seed: number): number {
+  const r = seed % 100 // 0–99
+  if (tier === 'elite') {
+    // Heavy weight on 80–95+
+    if (r < 10) return 70
+    if (r < 40) return 80
+    if (r < 80) return 90
+    return 95 // 95–100 bucket
+  }
+  if (tier === 'good') {
+    if (r < 10) return 50
+    if (r < 40) return 60
+    if (r < 75) return 70
+    return 80
+  }
+  if (tier === 'average') {
+    if (r < 20) return 30
+    if (r < 55) return 40
+    if (r < 80) return 50
+    return 60
+  }
+  // weak
+  if (r < 30) return 10
+  if (r < 60) return 20
+  if (r < 85) return 30
+  return 40
+}
 
 /** Which team indices (0–26) play in match m (1–54). Each match has exactly 6 teams; each team plays in exactly 12 matches. */
 function teamsForMatch(matchOneBased: number): number[] {
@@ -60,40 +102,143 @@ function makePitOnly(competitionId: string, teamNumber: number, scoutName: strin
 
 /** Plausible random game-only submission (matchNumber, game stats, no pit). */
 function makeGameOnly(competitionId: string, teamNumber: number, scoutName: string, createdAt: number, matchNumber: number, seed: number): ScoutSubmission {
+  const tier = tierForTeamNumber(teamNumber)
+
+  // Base robot scoring per active period by tier (2 periods per match).
+  let avgBase: number
+  switch (tier) {
+    case 'elite':
+      avgBase = 40 // ≈80 pts/match
+      break
+    case 'good':
+      avgBase = 28
+      break
+    case 'average':
+      avgBase = 18
+      break
+    case 'weak':
+    default:
+      avgBase = 8
+      break
+  }
+  const avgNoise = (seed % 7) - 3 // -3..+3
+  const avgPts = Math.max(0, avgBase + avgNoise)
+
+  // Human player contribution per active period: smaller and capped at 25, loosely tiered.
+  let hpBase: number
+  switch (tier) {
+    case 'elite':
+      hpBase = 18
+      break
+    case 'good':
+      hpBase = 14
+      break
+    case 'average':
+      hpBase = 9
+      break
+    case 'weak':
+    default:
+      hpBase = 4
+      break
+  }
+  const hpNoise = (seed % 7) - 3
+  const hpPts = Math.min(25, Math.max(0, hpBase + hpNoise))
+
+  // Auto hub points correlate with strength but stay lower than robot period scoring.
+  const autoFactor =
+    tier === 'elite' ? 0.6
+      : tier === 'good' ? 0.55
+        : tier === 'average' ? 0.5
+          : 0.45
+  const hubBase = avgPts * autoFactor
+  const hubNoise = seed % 5
+  const hubPts = Math.max(0, Math.round(hubBase + hubNoise))
+
   return {
     competitionId,
     teamNumber,
     scoutName,
     createdAt,
     matchNumber,
-    avgPtsPerActivePeriod: 2 + (seed % 8),
-    avgHumanPlayerPtsPerActivePeriod: 1 + (seed % 5),
-    hubPtsAuto: 2 + (seed % 14),
-    climbAuto: seed % 3 === 0,
-    climbReliability: pick(RELIABILITY, seed),
+    avgPtsPerActivePeriod: avgPts,
+    avgHumanPlayerPtsPerActivePeriod: hpPts,
+    hubPtsAuto: hubPts,
+    climbAuto: seed % (tier === 'elite' ? 2 : tier === 'good' ? 3 : tier === 'average' ? 4 : 5) === 0,
+    climbReliability: pick(RELIABILITY, seed + (tier === 'elite' ? 100 : 0)),
     intakeReliability: pick(RELIABILITY, seed + 5),
     moveWhileShooting: pick(MOVE_WHILE, seed + 10),
     pickUpWhileShooting: seed % 2 === 0,
-    shotAccuracyPercent: pick(SHOT_BUCKETS, seed + 13),
-    malfunction: seed % 10 === 0,
+    shotAccuracyPercent: shotPctForTier(tier, seed + 13),
+    malfunction: seed % (tier === 'weak' ? 5 : 12) === 0,
   }
 }
 
 /** Plausible pit+game submission (one match, pit and game fields). */
 function makePitAndGame(competitionId: string, teamNumber: number, scoutName: string, createdAt: number, matchNumber: number, seed: number): ScoutSubmission {
+  const tier = tierForTeamNumber(teamNumber)
+
+  // Same tiered robot scoring as makeGameOnly.
+  let avgBase: number
+  switch (tier) {
+    case 'elite':
+      avgBase = 40
+      break
+    case 'good':
+      avgBase = 28
+      break
+    case 'average':
+      avgBase = 18
+      break
+    case 'weak':
+    default:
+      avgBase = 8
+      break
+  }
+  const avgNoise = (seed % 7) - 3
+  const avgPts = Math.max(0, avgBase + avgNoise)
+
+  // Human player per-period contribution, capped at 25.
+  let hpBase: number
+  switch (tier) {
+    case 'elite':
+      hpBase = 18
+      break
+    case 'good':
+      hpBase = 14
+      break
+    case 'average':
+      hpBase = 9
+      break
+    case 'weak':
+    default:
+      hpBase = 4
+      break
+  }
+  const hpNoise = (seed % 7) - 3
+  const hpPts = Math.min(25, Math.max(0, hpBase + hpNoise))
+
+  const autoFactor =
+    tier === 'elite' ? 0.6
+      : tier === 'good' ? 0.55
+        : tier === 'average' ? 0.5
+          : 0.45
+  const hubBase = avgPts * autoFactor
+  const hubNoise = seed % 5
+  const hubPts = Math.max(0, Math.round(hubBase + hubNoise))
+
   return {
     ...makePitOnly(competitionId, teamNumber, scoutName, createdAt, seed),
     matchNumber,
-    avgPtsPerActivePeriod: 2 + (seed % 8),
-    avgHumanPlayerPtsPerActivePeriod: 1 + (seed % 5),
-    hubPtsAuto: 2 + (seed % 12),
-    climbAuto: seed % 4 === 0,
+    avgPtsPerActivePeriod: avgPts,
+    avgHumanPlayerPtsPerActivePeriod: hpPts,
+    hubPtsAuto: hubPts,
+    climbAuto: seed % (tier === 'elite' ? 2 : tier === 'good' ? 3 : 4) === 0,
     climbReliability: pick(RELIABILITY, seed + 3),
     intakeReliability: pick(RELIABILITY, seed + 7),
     moveWhileShooting: pick(MOVE_WHILE, seed + 11),
     pickUpWhileShooting: seed % 2 === 1,
-    shotAccuracyPercent: pick(SHOT_BUCKETS, seed + 17),
-    malfunction: false,
+    shotAccuracyPercent: shotPctForTier(tier, seed + 17),
+    malfunction: tier === 'weak' ? seed % 7 === 0 : false,
   }
 }
 
