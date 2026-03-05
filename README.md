@@ -33,7 +33,7 @@ git clone https://github.com/<your-org-or-user>/Scouting-App-2026.git
 cd Scouting-App-2026
 npm install
 npm run dev
-
+```
 You can make your own edits like changing the password, editing data parameters, etc by cloning and running the app yourself. 
 
 This just means you'd  have to set up the deployment as well (if you don't know how, use vercel, it's free).
