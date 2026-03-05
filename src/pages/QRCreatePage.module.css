@@ -80,6 +80,14 @@
   font-size: 0.9rem;
   color: var(--umoja-text-muted);
 }
+.submissionLabel {
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+.submissionSelect {
+  width: 100%;
+  max-width: 320px;
+}
 .qrImg {
   max-width: 320px;
   width: 100%;

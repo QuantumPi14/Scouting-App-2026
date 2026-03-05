@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
-import { parseQRPayload, importConfig, importData, type ConfigPayload, type DataPayload } from '../qr'
+import {
+  parseAnyQRPayload,
+  importConfig,
+  importData,
+  importDataV2,
+  type ConfigPayload,
+  type DataPayload,
+} from '../qr'
+import type { QrV2DataEnvelope } from '../types'
 import styles from './QRScanPage.module.css'
 
 const SCAN_FPS = 10
@@ -42,6 +50,8 @@ export function QRScanPage() {
   const totalConfigPartsRef = useRef<number | null>(null)
   const pendingDataPartsRef = useRef<Record<number, DataPayload>>({})
   const totalDataPartsRef = useRef<number | null>(null)
+  const pendingDataV2PartsRef = useRef<Record<number, QrV2DataEnvelope>>({})
+  const totalDataV2PartsRef = useRef<number | null>(null)
 
   const startScan = () => {
     if (!containerRef.current) return
@@ -52,6 +62,8 @@ export function QRScanPage() {
     totalConfigPartsRef.current = null
     pendingDataPartsRef.current = {}
     totalDataPartsRef.current = null
+    pendingDataV2PartsRef.current = {}
+    totalDataV2PartsRef.current = null
     const html5Qr = new Html5Qrcode(containerRef.current.id)
     scannerRef.current = html5Qr
     html5Qr.start(
@@ -62,7 +74,7 @@ export function QRScanPage() {
         if (!text) return
         if (lastScannedRef.current === text) return
         lastScannedRef.current = text
-        const payload = parseQRPayload(text)
+        const payload = parseAnyQRPayload(text)
         if (!payload) {
           setMessage('QR not recognized. Use a config or data QR from this app. If scanning from a screen, get closer so the QR fills the frame.')
           setStatus('error')
@@ -100,7 +112,7 @@ export function QRScanPage() {
               }
               setMessage(`Config part ${part} of ${totalParts} scanned. Scan the next QR.`)
               lastScannedRef.current = null
-            } else {
+            } else if (payload.type === 'data') {
               const totalParts = payload.totalParts ?? 1
               const part = payload.part ?? 1
               if (totalParts <= 1) {
@@ -129,6 +141,36 @@ export function QRScanPage() {
                   setStatus('success')
                   pendingDataPartsRef.current = {}
                   totalDataPartsRef.current = null
+                  stopScan()
+                  return
+                }
+              }
+              setMessage(`Data part ${part} of ${totalParts} scanned. Scan the next QR.`)
+              lastScannedRef.current = null
+            } else if (payload.type === 'data-v2') {
+              const totalParts = payload.totalParts ?? 1
+              const part = payload.part ?? 1
+              if (totalParts <= 1) {
+                await importDataV2([payload])
+                setMessage('Data imported.')
+                setStatus('success')
+                stopScan()
+                return
+              }
+              pendingDataV2PartsRef.current = { ...pendingDataV2PartsRef.current, [part]: payload }
+              totalDataV2PartsRef.current = totalParts
+              const collected = pendingDataV2PartsRef.current
+              const count = Object.keys(collected).length
+              if (count >= totalParts) {
+                const parts = Array.from({ length: totalParts }, (_, i) => collected[i + 1]).filter(
+                  (p): p is QrV2DataEnvelope => Boolean(p)
+                )
+                if (parts.length === totalParts) {
+                  await importDataV2(parts)
+                  setMessage('Data imported.')
+                  setStatus('success')
+                  pendingDataV2PartsRef.current = {}
+                  totalDataV2PartsRef.current = null
                   stopScan()
                   return
                 }

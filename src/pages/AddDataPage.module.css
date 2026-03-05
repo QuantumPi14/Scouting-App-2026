@@ -54,6 +54,28 @@
   min-height: 80px;
   resize: vertical;
 }
+.periodRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.stepper input {
+  width: 3.25rem;
+  text-align: center;
+}
+.stepperBtn {
+  min-width: 2rem;
+  min-height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--umoja-border);
+  background: var(--umoja-surface);
+}
 .submitBtn {
   align-self: flex-start;
   padding: 0.75rem 1.5rem;

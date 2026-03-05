@@ -11,6 +11,12 @@ export function QRCreatePage() {
   const [competitions, setCompetitions] = useState<Competition[]>([])
   const [selectedCompId, setSelectedCompId] = useState<string>('')
   const [selectedTeamNumbers, setSelectedTeamNumbers] = useState<Set<number>>(new Set())
+  const [scoutNames, setScoutNames] = useState<string[]>([])
+  const [selectedScoutNames, setSelectedScoutNames] = useState<Set<string>>(new Set())
+  const [submissionOptions, setSubmissionOptions] = useState<
+    { key: string; competitionId: string; teamNumber: number; createdAt: number; label: string }[]
+  >([])
+  const [selectedSubmissionKey, setSelectedSubmissionKey] = useState<string>('')
   const [urls, setUrls] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +35,46 @@ export function QRCreatePage() {
 
   useEffect(() => {
     setSelectedTeamNumbers(new Set())
+    setSelectedScoutNames(new Set())
+    setSelectedSubmissionKey('')
   }, [selectedCompId])
+
+  useEffect(() => {
+    async function loadMeta() {
+      let subs: ScoutSubmission[]
+      if (selectedCompId) {
+        subs = await db.submissions.where('competitionId').equals(selectedCompId).toArray() as ScoutSubmission[]
+      } else {
+        subs = await db.submissions.toArray() as ScoutSubmission[]
+      }
+      const teamNumbers = selectedTeamNumbers.size > 0 ? Array.from(selectedTeamNumbers) : undefined
+      if (teamNumbers && teamNumbers.length > 0) {
+        const set = new Set(teamNumbers)
+        subs = subs.filter((s) => set.has(s.teamNumber))
+      }
+      const scouts = Array.from(
+        new Set(
+          subs
+            .map((s) => (s.scoutName ?? '').trim())
+            .filter((name) => name.length > 0)
+        )
+      ).sort((a, b) => a.localeCompare(b))
+      setScoutNames(scouts)
+
+      const options = subs
+        .slice()
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map((s) => {
+          const key = `${s.competitionId}|${s.teamNumber}|${s.createdAt}`
+          const date = new Date(s.createdAt)
+          const when = Number.isFinite(date.getTime()) ? date.toLocaleString() : String(s.createdAt)
+          const label = `${s.scoutName || 'Unknown'} – team ${s.teamNumber} – match ${s.matchNumber ?? '—'} – ${when}`
+          return { key, competitionId: s.competitionId, teamNumber: s.teamNumber, createdAt: s.createdAt, label }
+        })
+      setSubmissionOptions(options)
+    }
+    loadMeta()
+  }, [selectedCompId, selectedTeamNumbers])
 
   const toggleTeam = (n: number) => {
     setSelectedTeamNumbers((prev) => {
@@ -42,6 +87,15 @@ export function QRCreatePage() {
   const selectAllTeams = () => setSelectedTeamNumbers(new Set(teamList))
   const deselectAllTeams = () => setSelectedTeamNumbers(new Set())
 
+  const toggleScout = (name: string) => {
+    setSelectedScoutNames((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
   const handleCreate = async (mode: 'scouting' | 'autopath') => {
     setLoading(true)
     setUrls([])
@@ -49,8 +103,22 @@ export function QRCreatePage() {
     setPathDataMissingCount(0)
     try {
       const teamNumbers = selectedTeamNumbers.size > 0 ? Array.from(selectedTeamNumbers) : undefined
+      const scoutNamesFilter = selectedScoutNames.size > 0 ? Array.from(selectedScoutNames) : undefined
+      const submissionKey = selectedSubmissionKey || undefined
+      const submissionKeys =
+        submissionKey && submissionOptions.length > 0
+          ? submissionOptions
+              .filter((opt) => opt.key === submissionKey)
+              .map((opt) => ({
+                competitionId: opt.competitionId,
+                teamNumber: opt.teamNumber,
+                createdAt: opt.createdAt,
+              }))
+          : undefined
       const list = await exportDataQR(selectedCompId || undefined, {
         teamNumbers,
+        scoutNames: scoutNamesFilter,
+        submissionKeys,
         mode,
       })
       setUrls(list)
@@ -111,6 +179,45 @@ export function QRCreatePage() {
                 </label>
               ))}
             </div>
+          </>
+        )}
+
+        {selectedCompId && (
+          <>
+            {scoutNames.length > 0 && (
+              <div className={styles.teamSelectRow}>
+                <label className={styles.teamLabel}>Scout names (optional)</label>
+              </div>
+            )}
+            {scoutNames.length > 0 && (
+              <div className={styles.teamList}>
+                {scoutNames.map((name) => (
+                  <label key={name} className={styles.teamCheck}>
+                    <input
+                      type="checkbox"
+                      checked={selectedScoutNames.has(name)}
+                      onChange={() => toggleScout(name)}
+                    />
+                    <span>{name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {submissionOptions.length > 0 && (
+              <>
+                <label className={styles.submissionLabel}>Single submission (optional)</label>
+                <select
+                  value={selectedSubmissionKey}
+                  onChange={(e) => setSelectedSubmissionKey(e.target.value)}
+                  className={styles.submissionSelect}
+                >
+                  <option value="">All submissions</option>
+                  {submissionOptions.map((opt) => (
+                    <option key={opt.key} value={opt.key}>{opt.label}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </>
         )}
 

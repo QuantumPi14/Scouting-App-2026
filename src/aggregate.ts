@@ -87,8 +87,28 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
       if (nums.length === 0) return null
       return avg(nums)
     })(),
-    avgPtsPerActivePeriod: avg(numericValues(submissions.map((s) => s.avgPtsPerActivePeriod))) ?? null,
-    avgHumanPlayerPtsPerActivePeriod: avg(numericValues(submissions.map((s) => s.avgHumanPlayerPtsPerActivePeriod))) ?? null,
+    avgPtsPerActivePeriod: (() => {
+      const values: number[] = []
+      for (const s of submissions) {
+        if (Array.isArray(s.ptsPerActivePeriod) && s.ptsPerActivePeriod.length > 0) {
+          values.push(...numericValues(s.ptsPerActivePeriod))
+        } else if (typeof s.avgPtsPerActivePeriod === 'number') {
+          values.push(s.avgPtsPerActivePeriod)
+        }
+      }
+      return avg(values)
+    })() ?? null,
+    avgHumanPlayerPtsPerActivePeriod: (() => {
+      const values: number[] = []
+      for (const s of submissions) {
+        if (Array.isArray(s.humanPlayerPtsPerActivePeriod) && s.humanPlayerPtsPerActivePeriod.length > 0) {
+          values.push(...numericValues(s.humanPlayerPtsPerActivePeriod))
+        } else if (typeof s.avgHumanPlayerPtsPerActivePeriod === 'number') {
+          values.push(s.avgHumanPlayerPtsPerActivePeriod)
+        }
+      }
+      return avg(values)
+    })() ?? null,
     hubPtsAuto: avg(numericValues(submissions.map((s) => s.hubPtsAuto))) ?? null,
     climbAuto: (() => {
       const withVal = submissions.filter((s) => s.climbAuto !== undefined && s.climbAuto !== null)

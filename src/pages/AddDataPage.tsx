@@ -29,8 +29,8 @@ export function AddDataPage() {
   const [climbTime, setClimbTime] = useState<number | ''>('')
   const [intakeType, setIntakeType] = useState<ScoutSubmission['intakeType']>(undefined)
   const [matchNumber, setMatchNumber] = useState<number | ''>('')
-  const [avgPtsPerActivePeriod, setAvgPtsPerActivePeriod] = useState<number | ''>('')
-  const [avgHumanPlayerPts, setAvgHumanPlayerPts] = useState<number | ''>('')
+  const [ptsPerActivePeriod, setPtsPerActivePeriod] = useState<(number | '')[]>(['', ''])
+  const [humanPtsPerActivePeriod, setHumanPtsPerActivePeriod] = useState<(number | '')[]>(['', ''])
   const [hubPtsAuto, setHubPtsAuto] = useState<number | ''>('')
   const [climbAuto, setClimbAuto] = useState<boolean | undefined>(undefined)
   const [climbReliability, setClimbReliability] = useState<ScoutSubmission['climbReliability']>(undefined)
@@ -50,8 +50,8 @@ export function AddDataPage() {
 
   const hasAnyGameStat =
     matchNumber !== '' ||
-    avgPtsPerActivePeriod !== '' ||
-    avgHumanPlayerPts !== '' ||
+    ptsPerActivePeriod.some((v) => v !== '') ||
+    humanPtsPerActivePeriod.some((v) => v !== '') ||
     hubPtsAuto !== '' ||
     climbAuto !== undefined ||
     climbReliability != null ||
@@ -65,6 +65,16 @@ export function AddDataPage() {
 
   const handleSubmit = async () => {
     if (!competitionId || !Number.isFinite(teamNum) || !canSubmit) return
+    const toPeriodArray = (vals: (number | '')[]): (number | null)[] => vals.map((v) => (v === '' ? null : Number(v)))
+    const ptsArray = toPeriodArray(ptsPerActivePeriod)
+    const humanArray = toPeriodArray(humanPtsPerActivePeriod)
+    const avgFromArray = (arr: (number | null)[]): number | undefined => {
+      const nums = arr.filter((v): v is number => typeof v === 'number')
+      if (nums.length === 0) return undefined
+      return nums.reduce((a, b) => a + b, 0) / nums.length
+    }
+    const avgPts = avgFromArray(ptsArray)
+    const avgHuman = avgFromArray(humanArray)
     const sub: ScoutSubmission = {
       competitionId,
       teamNumber: teamNum,
@@ -79,8 +89,10 @@ export function AddDataPage() {
       climbTime: climbTime === '' ? undefined : Number(climbTime),
       intakeType,
       matchNumber: matchNumber === '' ? undefined : Number(matchNumber),
-      avgPtsPerActivePeriod: avgPtsPerActivePeriod === '' ? undefined : Number(avgPtsPerActivePeriod),
-      avgHumanPlayerPtsPerActivePeriod: avgHumanPlayerPts === '' ? undefined : Number(avgHumanPlayerPts),
+      avgPtsPerActivePeriod: avgPts,
+      avgHumanPlayerPtsPerActivePeriod: avgHuman,
+      ptsPerActivePeriod: ptsArray.some((v) => v != null) ? ptsArray : undefined,
+      humanPlayerPtsPerActivePeriod: humanArray.some((v) => v != null) ? humanArray : undefined,
       hubPtsAuto: hubPtsAuto === '' ? undefined : Number(hubPtsAuto),
       climbAuto,
       climbReliability,
@@ -179,10 +191,98 @@ export function AddDataPage() {
         <div className={styles.fields}>
           <label>Match number *</label>
           <input type="number" value={matchNumber} onChange={(e) => setMatchNumber(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Required if game stats filled" />
-          <label>Avg pts/active period</label>
-          <input type="number" value={avgPtsPerActivePeriod} onChange={(e) => setAvgPtsPerActivePeriod(e.target.value === '' ? '' : Number(e.target.value))} />
-          <label>Avg Human Player pts/active period</label>
-          <input type="number" value={avgHumanPlayerPts} onChange={(e) => setAvgHumanPlayerPts(e.target.value === '' ? '' : Number(e.target.value))} />
+          <label>Pts/active period (P1, P2)</label>
+          <div className={styles.periodRow}>
+            {ptsPerActivePeriod.map((val, idx) => (
+              <div key={idx} className={styles.stepper}>
+                <button
+                  type="button"
+                  className={styles.stepperBtn}
+                  onClick={() =>
+                    setPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      const current = next[idx] === '' ? 0 : Number(next[idx])
+                      next[idx] = current - 1
+                      return next
+                    })
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={val}
+                  onChange={(e) =>
+                    setPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      next[idx] = e.target.value === '' ? '' : Number(e.target.value)
+                      return next
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  className={styles.stepperBtn}
+                  onClick={() =>
+                    setPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      const current = next[idx] === '' ? 0 : Number(next[idx])
+                      next[idx] = current + 1
+                      return next
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+          <label>Human player pts/active period (P1, P2)</label>
+          <div className={styles.periodRow}>
+            {humanPtsPerActivePeriod.map((val, idx) => (
+              <div key={idx} className={styles.stepper}>
+                <button
+                  type="button"
+                  className={styles.stepperBtn}
+                  onClick={() =>
+                    setHumanPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      const current = next[idx] === '' ? 0 : Number(next[idx])
+                      next[idx] = current - 1
+                      return next
+                    })
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={val}
+                  onChange={(e) =>
+                    setHumanPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      next[idx] = e.target.value === '' ? '' : Number(e.target.value)
+                      return next
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  className={styles.stepperBtn}
+                  onClick={() =>
+                    setHumanPtsPerActivePeriod((prev) => {
+                      const next = [...prev]
+                      const current = next[idx] === '' ? 0 : Number(next[idx])
+                      next[idx] = current + 1
+                      return next
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
           <label>Hub pts/auto</label>
           <input type="number" value={hubPtsAuto} onChange={(e) => setHubPtsAuto(e.target.value === '' ? '' : Number(e.target.value))} />
           <label>Climb auto?</label>
