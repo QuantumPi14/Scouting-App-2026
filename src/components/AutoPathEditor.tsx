@@ -4,7 +4,7 @@ import styles from './AutoPathEditor.module.css'
 
 const FIELD_IMAGE_SRC = `${(import.meta.env.BASE_URL || '/').replace(/\/?$/, '')}/2026-field.png`
 
-type MarkerType = 'start' | 'end' | 'climb' | 'shot'
+type MarkerType = 'start' | 'end' | 'climb' | 'shot' | 'waypoint'
 
 interface Marker {
   type: MarkerType
@@ -14,17 +14,7 @@ interface Marker {
   id: string
 }
 
-interface PathPoint {
-  x: number
-  y: number
-}
-
-const INITIAL_MARKERS: Marker[] = [
-  { type: 'start', x: 0.1, y: 0.9, onField: false, id: 'start' },
-  { type: 'end', x: 0.2, y: 0.9, onField: false, id: 'end' },
-  { type: 'climb', x: 0.3, y: 0.9, onField: false, id: 'climb' },
-  { type: 'shot', x: 0.4, y: 0.9, onField: false, id: 'shot0' },
-]
+const PALETTE_MARKERS: MarkerType[] = ['start', 'end', 'climb', 'shot', 'waypoint']
 
 export function AutoPathEditor({
   onSave,
@@ -38,31 +28,34 @@ export function AutoPathEditor({
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
+  const idCounterRef = useRef(0)
   const [fieldLoaded, setFieldLoaded] = useState(false)
   const [fieldSize, setFieldSize] = useState({ w: 600, h: 300 })
-  const [markers, setMarkers] = useState<Marker[]>(() => [...INITIAL_MARKERS])
-  const [shotCount, setShotCount] = useState(1)
-  const [path, setPath] = useState<PathPoint[]>([])
-  const [drawing, setDrawing] = useState(false)
+  const [markers, setMarkers] = useState<Marker[]>([])
   const [dragging, setDragging] = useState<{ id: string } | null>(null)
   const [fieldLoadErrorUrl, setFieldLoadErrorUrl] = useState<string | null>(null)
   const imgRef = useRef<HTMLImageElement | null>(null)
 
   const resetEditor = useCallback(() => {
-    setPath([])
-    setMarkers([...INITIAL_MARKERS])
-    setShotCount(1)
+    setMarkers([])
+    idCounterRef.current = 0
     onSave(undefined, undefined)
   }, [onSave])
+
+  const computeFieldSize = useCallback((img: HTMLImageElement, containerWidth: number) => {
+    const maxW = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 800)
+    const maxH = typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.55) : 450
+    const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight)
+    return { w: Math.round(img.naturalWidth * scale), h: Math.round(img.naturalHeight * scale) }
+  }, [])
 
   const loadField = useCallback(() => {
     const img = new Image()
     img.onload = () => {
       imgRef.current = img
       setFieldLoadErrorUrl(null)
-      const maxW = containerRef.current ? Math.min(containerRef.current.offsetWidth, 700) : 600
-      const scale = maxW / img.naturalWidth
-      setFieldSize({ w: Math.round(img.naturalWidth * scale), h: Math.round(img.naturalHeight * scale) })
+      const containerWidth = containerRef.current?.offsetWidth ?? 0
+      setFieldSize(computeFieldSize(img, containerWidth))
       setFieldLoaded(true)
     }
     img.onerror = () => {
@@ -71,16 +64,27 @@ export function AutoPathEditor({
       setFieldLoadErrorUrl(FIELD_IMAGE_SRC)
     }
     img.src = FIELD_IMAGE_SRC
-  }, [])
+  }, [computeFieldSize])
 
   useEffect(() => {
     loadField()
   }, [loadField])
 
-  const addShotMarker = () => {
-    const id = `shot${shotCount}`
-    setShotCount((c) => c + 1)
-    setMarkers((m) => [...m, { type: 'shot', x: 0.4 + (shotCount + 1) * 0.05, y: 0.9, onField: false, id }])
+  useEffect(() => {
+    const img = imgRef.current
+    const container = containerRef.current
+    if (!img?.complete || !container) return
+    const ro = new ResizeObserver(() => {
+      setFieldSize(computeFieldSize(img, container.offsetWidth))
+    })
+    ro.observe(container)
+    return () => ro.disconnect()
+  }, [fieldLoaded, computeFieldSize])
+
+  const createMarker = (type: MarkerType): string => {
+    const id = `${type}-${idCounterRef.current++}`
+    setMarkers((m) => [...m, { type, x: 0.5, y: 0.9, onField: false, id }])
+    return id
   }
 
   const getMarkerColor = (type: MarkerType) => {
@@ -89,6 +93,7 @@ export function AutoPathEditor({
       case 'end': return '#ef4444'
       case 'climb': return '#3b82f6'
       case 'shot': return '#eab308'
+      case 'waypoint': return '#a855f7'
       default: return '#888'
     }
   }
@@ -99,6 +104,7 @@ export function AutoPathEditor({
       case 'end': return 'End'
       case 'climb': return 'Climb'
       case 'shot': return 'Shot'
+      case 'waypoint': return 'Waypoint'
       default: return type
     }
   }
@@ -113,14 +119,12 @@ export function AutoPathEditor({
   const handlePointerDown = (clientX: number, clientY: number) => {
     const pt = canvasToField(clientX, clientY)
     if (!pt) return
-    const hitRadius = 0.02
+    const hitRadius = 0.045
     const hit = markers.find((m) => m.onField && Math.hypot(m.x - pt.x, m.y - pt.y) < hitRadius)
     if (hit) {
       setDragging({ id: hit.id })
       return
     }
-    setDrawing(true)
-    setPath((p) => [...p, pt])
   }
 
   const handlePointerMove = (clientX: number, clientY: number) => {
@@ -133,34 +137,28 @@ export function AutoPathEditor({
       setMarkers((m) => m.map((mark) => (mark.id === dragging.id ? { ...mark, x, y, onField: true } : mark)))
       return
     }
-    if (drawing) setPath((p) => [...p, { x, y }])
   }
 
   const handlePointerUp = (clientX: number, clientY: number) => {
-    setDrawing(false)
     const id = dragging?.id
     setDragging(null)
     if (id && trashRef.current) {
       const rect = trashRef.current.getBoundingClientRect()
       if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-        setMarkers((m) => {
-          const mark = m.find((x) => x.id === id)
-          if (!mark) return m
-          if (mark.type === 'shot') return m.filter((x) => x.id !== id)
-          const idx = m.findIndex((x) => x.id === id)
-          return m.map((x) => (x.id === id ? { ...x, x: 0.1 + idx * 0.1, y: 0.9, onField: false } : x))
-        })
+        setMarkers((m) => m.filter((x) => x.id !== id))
       }
     }
   }
 
-  const handleStripMarkerMouseDown = (e: React.MouseEvent, id: string) => {
+  const handleStripMarkerMouseDown = (e: React.MouseEvent, type: MarkerType) => {
     e.preventDefault()
+    const id = createMarker(type)
     setDragging({ id })
   }
 
-  const handleStripMarkerTouchStart = (e: React.TouchEvent, id: string) => {
+  const handleStripMarkerTouchStart = (e: React.TouchEvent, type: MarkerType) => {
     e.preventDefault()
+    const id = createMarker(type)
     setDragging({ id })
   }
 
@@ -180,7 +178,6 @@ export function AutoPathEditor({
   }
 
   const handleCanvasMouseLeave = () => {
-    setDrawing(false)
     if (!dragging) setDragging(null)
   }
 
@@ -233,13 +230,7 @@ export function AutoPathEditor({
       if (trashRef.current) {
         const rect = trashRef.current.getBoundingClientRect()
         if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          setMarkers((m) => {
-            const mark = m.find((x) => x.id === id)
-            if (!mark) return m
-            if (mark.type === 'shot') return m.filter((x) => x.id !== id)
-            const idx = m.findIndex((x) => x.id === id)
-            return m.map((x) => (x.id === id ? { ...x, x: 0.1 + idx * 0.1, y: 0.9, onField: false } : x))
-          })
+          setMarkers((m) => m.filter((x) => x.id !== id))
         }
       }
     }
@@ -250,15 +241,9 @@ export function AutoPathEditor({
       setDragging(null)
       if (trashRef.current) {
         const rect = trashRef.current.getBoundingClientRect()
-        if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-          setMarkers((m) => {
-            const mark = m.find((x) => x.id === id)
-            if (!mark) return m
-            if (mark.type === 'shot') return m.filter((x) => x.id !== id)
-            const idx = m.findIndex((x) => x.id === id)
-            return m.map((x) => (x.id === id ? { ...x, x: 0.1 + idx * 0.1, y: 0.9, onField: false } : x))
-          })
-        }
+      if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
+        setMarkers((m) => m.filter((x) => x.id !== id))
+      }
       }
     }
     window.addEventListener('mousemove', onMove)
@@ -299,34 +284,25 @@ export function AutoPathEditor({
     const offsetY = (rect.height - drawH) / 2
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, offsetX, offsetY, drawW, drawH)
-    ctx.strokeStyle = '#00ff00'
-    ctx.lineWidth = 3
-    ctx.lineCap = 'round'
-    if (path.length >= 2) {
-      ctx.beginPath()
-      ctx.moveTo(offsetX + path[0].x * drawW, offsetY + path[0].y * drawH)
-      for (let i = 1; i < path.length; i++) ctx.lineTo(offsetX + path[i].x * drawW, offsetY + path[i].y * drawH)
-      ctx.stroke()
-    }
+    const r = Math.max(6, Math.floor(drawW / 80))
     markers.forEach((mark) => {
       if (!mark.onField) return
       const mx = offsetX + mark.x * drawW
       const my = offsetY + mark.y * drawH
       ctx.fillStyle = getMarkerColor(mark.type)
       ctx.beginPath()
-      ctx.arc(mx, my, 10, 0, Math.PI * 2)
+      ctx.arc(mx, my, r, 0, Math.PI * 2)
       ctx.fill()
       ctx.strokeStyle = '#fff'
       ctx.lineWidth = 2
       ctx.stroke()
     })
-  }, [fieldLoaded, fieldSize, path, markers, fieldLoadErrorUrl])
+  }, [fieldLoaded, fieldSize, markers, fieldLoadErrorUrl])
 
   const savePath = () => {
     if (!imgRef.current) return
     const pathData: AutoPathData = {
       markers: markers.filter((m) => m.onField).map((m) => ({ type: m.type, id: m.id, x: m.x, y: m.y })),
-      path: [...path],
     }
     const img = imgRef.current
     const off = document.createElement('canvas')
@@ -337,15 +313,6 @@ export function AutoPathEditor({
     ctx.drawImage(img, 0, 0)
     const W = off.width
     const H = off.height
-    ctx.strokeStyle = '#00ff00'
-    ctx.lineWidth = Math.max(2, Math.floor(W / 200))
-    ctx.lineCap = 'round'
-    if (path.length >= 2) {
-      ctx.beginPath()
-      ctx.moveTo(path[0].x * W, path[0].y * H)
-      for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x * W, path[i].y * H)
-      ctx.stroke()
-    }
     const r = Math.max(4, Math.floor(W / 80))
     markers.forEach((mark) => {
       if (!mark.onField) return
@@ -385,31 +352,29 @@ export function AutoPathEditor({
           onTouchStart={handleCanvasTouchStart}
           onTouchMove={handleCanvasTouchMove}
           onTouchEnd={handleCanvasTouchEnd}
-          style={{ width: fieldSize.w, height: fieldSize.h, maxWidth: '100%', cursor: drawing ? 'crosshair' : 'default', touchAction: 'none' }}
+          style={{ width: fieldSize.w, height: fieldSize.h, maxWidth: '100%', touchAction: 'none' }}
         />
       </div>
       <div className={styles.strip}>
-        {markers.map((mark) => (
-          <div key={mark.id} className={styles.legendItem}>
-            <span className={styles.legendLabel}>{getMarkerLabel(mark.type)}{mark.type === 'shot' && mark.id !== 'shot0' ? ` (${mark.id.replace('shot', '')})` : ''}</span>
+        {PALETTE_MARKERS.map((type) => (
+          <div key={type} className={styles.legendItem}>
+            <span className={styles.legendLabel}>{getMarkerLabel(type)}</span>
             <div
               className={styles.stripMarker}
-              data-marker-id={mark.id}
-              style={{ background: getMarkerColor(mark.type), touchAction: 'none' }}
-              onMouseDown={(e) => handleStripMarkerMouseDown(e, mark.id)}
-              onTouchStart={(e) => handleStripMarkerTouchStart(e, mark.id)}
+              style={{ background: getMarkerColor(type), touchAction: 'none' }}
+              onMouseDown={(e) => handleStripMarkerMouseDown(e, type)}
+              onTouchStart={(e) => handleStripMarkerTouchStart(e, type)}
               role="button"
               tabIndex={0}
             />
           </div>
         ))}
-        <button type="button" className={styles.addShotBtn} onClick={addShotMarker}>+ Shot</button>
         <div ref={trashRef} className={styles.trashBin} title="Drag a marker here to remove it from the field">
           <span className={styles.trashIcon} aria-hidden>🗑</span>
           <span className={styles.trashLabel}>Remove marker</span>
         </div>
       </div>
-      <p className={styles.dragHint}>Drag markers from the strip onto the field, or drag markers on the field to move them. Draw the path by clicking/dragging on the field.</p>
+      <p className={styles.dragHint}>Drag markers from the strip onto the field, or drag markers on the field to move them.</p>
       <div className={styles.saveRow}>
         <button type="button" className={styles.savePathBtn} onClick={savePath}>Save path</button>
       </div>

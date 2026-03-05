@@ -62,7 +62,7 @@ export function QRCreatePage() {
           subs = await db.submissions.toArray() as ScoutSubmission[]
         }
         const filtered = teamNumbers ? subs.filter((s) => teamNumbers.includes(s.teamNumber)) : subs
-        const missing = filtered.filter((s) => s.autoPathImageData && !(s.autoPathData && (s.autoPathData.markers?.length || s.autoPathData.path?.length))).length
+        const missing = filtered.filter((s) => s.autoPathImageData && !(s.autoPathData && s.autoPathData.markers?.length)).length
         setPathDataMissingCount(missing)
       }
     } catch (e) {

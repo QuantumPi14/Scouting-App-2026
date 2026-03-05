@@ -13,6 +13,23 @@ function avg(nums: number[]): number | null {
   return nums.reduce((a, b) => a + b, 0) / nums.length
 }
 
+const SHOT_PCT_BUCKETS = [0, 20, 40, 60, 80, 90, 95]
+
+function bucketShotPercent(value: number | null): number | null {
+  if (value == null || Number.isNaN(value)) return null
+  let best = SHOT_PCT_BUCKETS[0]
+  let bestDiff = Math.abs(value - best)
+  for (let i = 1; i < SHOT_PCT_BUCKETS.length; i++) {
+    const b = SHOT_PCT_BUCKETS[i]
+    const d = Math.abs(value - b)
+    if (d < bestDiff) {
+      best = b
+      bestDiff = d
+    }
+  }
+  return best
+}
+
 /** Most recent non-empty value; if latest is empty/whitespace, walk back. */
 function mostRecentNonEmpty<T>(submissions: ScoutSubmission[], get: (s: ScoutSubmission) => T | undefined | null, format: (t: T) => string): string | null {
   const sorted = [...submissions].sort((a, b) => b.createdAt - a.createdAt)
@@ -88,7 +105,7 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
       const sorted = [...withVal].sort((a, b) => b.createdAt - a.createdAt)
       return sorted[0].pickUpWhileShooting ?? null
     })(),
-    shotAccuracyPercent: avg(numericValues(submissions.map((s) => s.shotAccuracyPercent))) ?? null,
+    shotAccuracyPercent: bucketShotPercent(avg(numericValues(submissions.map((s) => s.shotAccuracyPercent)))),
     malfunctionMatchCount: (() => {
       const withMalfunction = submissions.filter((s) => s.matchNumber != null && s.malfunction === true)
       const matchNumbers = new Set(withMalfunction.map((s) => s.matchNumber!))
@@ -101,8 +118,7 @@ export function aggregateSubmissions(submissions: ScoutSubmission[]): TeamAggreg
     const d = item.pathData
     if (!d || typeof d !== 'object') return false
     const markers = Array.isArray(d.markers) ? d.markers : []
-    const path = Array.isArray(d.path) ? d.path : []
-    return markers.length > 0 || path.length > 0
+    return markers.length > 0
   }
   const autoPathItems: { image?: string; pathData?: AutoPathData }[] = submissions
     .map((s) => ({ image: s.autoPathImageData, pathData: s.autoPathData }))

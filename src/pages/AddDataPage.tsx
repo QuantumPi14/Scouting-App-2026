@@ -11,7 +11,7 @@ const CLIMB_SIDES = ['right', 'left', 'center'] as const
 const INTAKE_OPTIONS = ['one at a time', 'multiple'] as const
 const RELIABILITY_OPTIONS = ['unreliable', 'semi-reliable', 'reliable'] as const
 const MOVE_WHILE_SHOOTING_OPTIONS = ['yes', 'kinda', 'no'] as const
-const SHOT_ACCURACY_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
+const SHOT_ACCURACY_OPTIONS = [0, 20, 40, 60, 80, 90, 95] as const
 
 export function AddDataPage() {
   const { competitionId, teamNumber } = useParams<{ competitionId: string; teamNumber: string }>()
@@ -220,7 +220,7 @@ export function AddDataPage() {
           <select value={shotAccuracyPercent === '' ? '' : shotAccuracyPercent} onChange={(e) => setShotAccuracyPercent(e.target.value === '' ? '' : Number(e.target.value))}>
             <option value="">—</option>
             {SHOT_ACCURACY_OPTIONS.map((o) => (
-              <option key={o} value={o}>{o}%</option>
+              <option key={o} value={o}>{o === 95 ? '95–100%' : `${o}%`}</option>
             ))}
           </select>
           <label>Malfunction?</label>

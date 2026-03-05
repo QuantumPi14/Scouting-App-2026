@@ -14,7 +14,7 @@ const CLIMB_OPTIONS = ["can't climb", 'L1', 'L2', 'L3'] as const
 const CLIMB_REL_OPTIONS = ['unreliable', 'semi-reliable', 'reliable'] as const
 const CLIMB_SPOT_OPTIONS = ['left', 'right', 'center'] as const
 const MOVE_SHOOT_OPTIONS = ['yes', 'kinda', 'no'] as const
-const SHOT_ACCURACY_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
+const SHOT_ACCURACY_OPTIONS = [0, 20, 40, 60, 80, 90, 95] as const
 
 export function HomePage() {
   const { competitionId, setCompetitionId, searchType, setSearchType, searchQuery, setSearchQuery, matchFilter, setMatchFilter } = useApp()
@@ -284,7 +284,11 @@ export function HomePage() {
                       title="Filter by shot accuracy %"
                     >
                       <option value="">All</option>
-                      {SHOT_ACCURACY_OPTIONS.map((o) => <option key={o} value={String(o)}>{o}%</option>)}
+                      {SHOT_ACCURACY_OPTIONS.map((o) => (
+                        <option key={o} value={String(o)}>
+                          {o === 95 ? '95–100%' : `${o}%`}
+                        </option>
+                      ))}
                     </select>
                   </th>
                   <th
@@ -332,15 +336,15 @@ export function HomePage() {
                         {comp.teamNames[teamNumber] ?? `Team ${teamNumber}`}
                       </Link>
                     </td>
-                    <td>{agg?.game.avgPtsPerActivePeriod ?? '—'}</td>
+                    <td>{agg?.game.avgPtsPerActivePeriod != null ? agg.game.avgPtsPerActivePeriod.toFixed(1) : '—'}</td>
                     <td>{agg?.pit.climb ?? '—'}</td>
                     <td>{agg?.game.climbReliability ?? '—'}</td>
                     <td>{agg?.pit.climbSides?.join(', ') ?? '—'}</td>
-                    <td>{agg?.game.hubPtsAuto ?? '—'}</td>
+                    <td>{agg?.game.hubPtsAuto != null ? agg.game.hubPtsAuto.toFixed(1) : '—'}</td>
                     <td>{agg?.pit.turret == null ? '—' : agg.pit.turret ? 'Yes' : 'No'}</td>
                     <td>{agg?.game.moveWhileShooting ?? '—'}</td>
                     <td>{agg?.game.pickUpWhileShooting == null ? '—' : agg?.game.pickUpWhileShooting ? 'Yes' : 'No'}</td>
-                    <td>{agg?.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent}%` : '—'}</td>
+                    <td>{agg?.game.shotAccuracyPercent != null ? `${agg.game.shotAccuracyPercent.toFixed(1)}%` : '—'}</td>
                     <td>{agg?.game.malfunctionMatchCount != null ? agg.game.malfunctionMatchCount : '—'}</td>
                   </tr>
                 ))}

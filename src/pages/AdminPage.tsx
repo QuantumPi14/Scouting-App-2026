@@ -4,7 +4,10 @@ import { useApp } from '../context'
 import { db } from '../db'
 import type { Competition } from '../types'
 import { exportConfigQR } from '../qr'
+import { generateDemoCompetition } from '../generateDemoData'
 import styles from './AdminPage.module.css'
+
+const DEMO_COMPETITION_ID = 'test'
 
 export function AdminPage() {
   const { isAdminLoggedIn, adminLogin, adminLogout } = useApp()
@@ -14,6 +17,8 @@ export function AdminPage() {
   const [teamInput, setTeamInput] = useState('')
   const [competitions, setCompetitions] = useState<Competition[]>([])
   const [saved, setSaved] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoClearing, setDemoClearing] = useState(false)
 
   useEffect(() => {
     db.competitions.toArray().then(setCompetitions)
@@ -58,6 +63,30 @@ export function AdminPage() {
     await db.submissions.where('competitionId').equals(comp.id).delete()
     await db.competitions.delete(comp.id)
     setCompetitions(await db.competitions.toArray())
+  }
+
+  const handleLoadDemo = async () => {
+    setDemoLoading(true)
+    try {
+      const { competition, submissions } = generateDemoCompetition()
+      await db.competitions.put(competition)
+      await db.submissions.bulkAdd(submissions)
+      setCompetitions(await db.competitions.toArray())
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  const handleClearDemo = async () => {
+    if (!confirm('Remove the Test competition and all its scout data? This cannot be undone.')) return
+    setDemoClearing(true)
+    try {
+      await db.submissions.where('competitionId').equals(DEMO_COMPETITION_ID).delete()
+      await db.competitions.delete(DEMO_COMPETITION_ID)
+      setCompetitions(await db.competitions.toArray())
+    } finally {
+      setDemoClearing(false)
+    }
   }
 
   const handleRemoveTeam = async (comp: Competition, teamNumber: number) => {
@@ -137,6 +166,19 @@ export function AdminPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className={styles.section}>
+        <h2>Demo data</h2>
+        <p className={styles.hint}>Load a &quot;Test&quot; competition with 27 teams and 13 submissions per team for testing export/import and UI at scale. Clear removes it and all its data.</p>
+        <div className={styles.demoActions}>
+          <button type="button" onClick={handleLoadDemo} disabled={demoLoading}>
+            {demoLoading ? 'Loading…' : 'Load demo data'}
+          </button>
+          <button type="button" onClick={handleClearDemo} disabled={demoClearing} className={styles.dangerBtn}>
+            {demoClearing ? 'Clearing…' : 'Clear demo data'}
+          </button>
+        </div>
       </section>
 
       <section className={styles.section}>

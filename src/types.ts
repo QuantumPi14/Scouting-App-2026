@@ -34,27 +34,26 @@ export interface ScoutSubmission {
   intakeReliability?: 'unreliable' | 'semi-reliable' | 'reliable'
   moveWhileShooting?: 'yes' | 'kinda' | 'no'
   pickUpWhileShooting?: boolean
-  shotAccuracyPercent?: number // 0, 10, 20, ..., 100
+  shotAccuracyPercent?: number // buckets: 0, 20, 40, 60, 80, 90, 95 (≈95–100)
   malfunction?: boolean
 
   notes?: string
   autoPathImageData?: string // base64 PNG (not sent in QR; use autoPathData to sync)
-  /** Normalized 0–1 coordinates to recreate path + markers on the field template (included in QR). */
+  /** Normalized 0–1 marker coordinates on the field template (included in QR). */
   autoPathData?: AutoPathData
 }
 
 /** Stored marker: type, id, and normalized (0–1) position. Only markers on the field are stored. */
 export interface AutoPathMarkerStored {
-  type: 'start' | 'end' | 'climb' | 'shot'
+  type: 'start' | 'end' | 'climb' | 'shot' | 'waypoint'
   id: string
   x: number
   y: number
 }
 
-/** Lightweight path data for sync/QR: markers on field + path points (all coordinates 0–1). */
+/** Lightweight auto path data for sync/QR: markers on field (all coordinates 0–1). */
 export interface AutoPathData {
   markers: AutoPathMarkerStored[]
-  path: { x: number; y: number }[]
 }
 
 // Aggregated "average" view for a team (computed from submissions)

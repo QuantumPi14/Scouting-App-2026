@@ -9,6 +9,7 @@ const MARKER_COLORS: Record<AutoPathData['markers'][0]['type'], string> = {
   end: '#ef4444',
   climb: '#3b82f6',
   shot: '#eab308',
+  waypoint: '#a855f7',
 }
 
 export function AutoPathViewer({
@@ -59,19 +60,7 @@ export function AutoPathViewer({
     ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, size.w, size.h)
     const W = size.w
     const H = size.h
-    const path = Array.isArray(pathData.path) ? pathData.path : []
     const markers = Array.isArray(pathData.markers) ? pathData.markers : []
-    if (path.length >= 2) {
-      ctx.strokeStyle = '#00ff00'
-      ctx.lineWidth = Math.max(2, Math.floor(W / 200))
-      ctx.lineCap = 'round'
-      ctx.beginPath()
-      ctx.moveTo(path[0].x * W, path[0].y * H)
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x * W, path[i].y * H)
-      }
-      ctx.stroke()
-    }
     const r = Math.max(4, Math.floor(W / 80))
     markers.forEach((mark) => {
       const mx = mark.x * W
