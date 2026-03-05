@@ -353,6 +353,48 @@ export interface ExportDataOptions {
   mode?: ExportDataMode
 }
 
+export async function exportDataFile(
+  competitionId?: string,
+  options?: ExportDataOptions
+): Promise<Blob> {
+  let submissions: ScoutSubmission[]
+  if (competitionId) {
+    submissions = await db.submissions.where('competitionId').equals(competitionId).toArray() as ScoutSubmission[]
+  } else {
+    submissions = await db.submissions.toArray() as ScoutSubmission[]
+  }
+  const teamNumbers = options?.teamNumbers
+  if (teamNumbers != null && teamNumbers.length > 0) {
+    const set = new Set(teamNumbers)
+    submissions = submissions.filter((s) => set.has(s.teamNumber))
+  }
+  const scoutNames = options?.scoutNames
+  if (scoutNames != null && scoutNames.length > 0) {
+    const set = new Set(scoutNames.map((n) => n.trim().toLowerCase()).filter(Boolean))
+    submissions = submissions.filter((s) => set.has((s.scoutName ?? '').trim().toLowerCase()))
+  }
+  const submissionKeys = options?.submissionKeys
+  if (submissionKeys != null && submissionKeys.length > 0) {
+    const keySet = new Set(
+      submissionKeys.map((k) => `${k.competitionId}|${k.teamNumber}|${k.createdAt}`)
+    )
+    submissions = submissions.filter((s) => keySet.has(`${s.competitionId}|${s.teamNumber}|${s.createdAt}`))
+  }
+  const mode = options?.mode ?? 'full'
+  const forFile = submissionsForQR(submissions, mode)
+  const exportedAt = Date.now()
+  const payload: DataPayload = {
+    v: QR_VERSION,
+    type: 'data',
+    competitionId,
+    submissions: forFile,
+    exportedAt,
+  }
+  return new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  })
+}
+
 export async function exportDataQR(competitionId?: string, options?: ExportDataOptions): Promise<string[]> {
   let submissions: ScoutSubmission[]
   if (competitionId) {

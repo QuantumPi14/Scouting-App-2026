@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../context'
 import { db } from '../db'
-import { exportDataQR } from '../qr'
+import { exportDataQR, exportDataFile } from '../qr'
 import type { Competition, ScoutSubmission } from '../types'
 import styles from './QRCreatePage.module.css'
 
@@ -94,6 +94,60 @@ export function QRCreatePage() {
       else next.add(name)
       return next
     })
+  }
+
+  const handleExportFile = async (mode: 'scouting' | 'autopath') => {
+    setLoading(true)
+    setError(null)
+    try {
+      const teamNumbers = selectedTeamNumbers.size > 0 ? Array.from(selectedTeamNumbers) : undefined
+      const scoutNamesFilter = selectedScoutNames.size > 0 ? Array.from(selectedScoutNames) : undefined
+      const submissionKey = selectedSubmissionKey || undefined
+      const submissionKeys =
+        submissionKey && submissionOptions.length > 0
+          ? submissionOptions
+              .filter((opt) => opt.key === submissionKey)
+              .map((opt) => ({
+                competitionId: opt.competitionId,
+                teamNumber: opt.teamNumber,
+                createdAt: opt.createdAt,
+              }))
+          : undefined
+
+      const blob = await exportDataFile(selectedCompId || undefined, {
+        teamNumbers,
+        scoutNames: scoutNamesFilter,
+        submissionKeys,
+        mode,
+      })
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const baseName = mode === 'autopath' ? 'autopath-data' : 'scouting-data'
+      const filename = `${baseName}-${selectedCompId || 'all'}-${timestamp}.json`
+      const file = new File([blob], filename, { type: 'application/json' })
+
+      const navAny = navigator as any
+      if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({
+          files: [file],
+          title: 'Umoja scouting data',
+          text: 'Import this file in the Umoja scouting app to merge data.',
+        })
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCreate = async (mode: 'scouting' | 'autopath') => {
@@ -227,6 +281,9 @@ export function QRCreatePage() {
           </button>
           <button type="button" onClick={() => handleCreate('autopath')} disabled={loading}>
             {loading ? 'Generating…' : 'Generate auto path data QR'}
+          </button>
+          <button type="button" onClick={() => handleExportFile('scouting')} disabled={loading}>
+            {loading ? 'Preparing…' : 'Export scouting data JSON'}
           </button>
         </div>
         {error && <p className={styles.error}>Failed to generate QR: {error}</p>}

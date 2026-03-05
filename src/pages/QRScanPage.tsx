@@ -53,6 +53,8 @@ export function QRScanPage() {
   const pendingDataV2PartsRef = useRef<Record<number, QrV2DataEnvelope>>({})
   const totalDataV2PartsRef = useRef<number | null>(null)
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const startScan = () => {
     if (!containerRef.current) return
     setStatus('scanning')
@@ -207,10 +209,42 @@ export function QRScanPage() {
     }
   }, [])
 
+  const handleImportFileClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      if (data?.type === 'config') {
+        await importConfig(data as ConfigPayload)
+        setMessage('Config imported from file.')
+        setStatus('success')
+      } else if (data?.type === 'data') {
+        await importData(data as DataPayload)
+        setMessage('Data imported from file.')
+        setStatus('success')
+      } else {
+        setMessage('File not recognized. Expected a config or data JSON export from this app.')
+        setStatus('error')
+      }
+    } catch (err) {
+      setMessage(String(err))
+      setStatus('error')
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h1>Scan QR</h1>
-      <p>Scan a config QR (from Admin) or data QR to import.</p>
+      <p>Scan a config QR (from Admin) or data QR to import, or import a JSON export file.</p>
       <p className={styles.hint}>Tip: If scanning a QR from another screen (e.g. laptop), make the QR as large as possible and fill your phone&apos;s frame. Avoid glare and hold steady.</p>
       <div ref={containerRef} id="qr-reader" className={styles.reader} style={{ minHeight: status === 'scanning' ? MIN_HEIGHT_PX : 0 }} />
       <div className={styles.actions}>
@@ -220,6 +254,14 @@ export function QRScanPage() {
         {status === 'scanning' && (
           <button type="button" onClick={stopScan}>Stop</button>
         )}
+        <button type="button" onClick={handleImportFileClick}>Import JSON file</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
       </div>
       {message && <p className={status === 'error' ? styles.error : styles.success}>{message}</p>}
       <p><Link to="/">Back to Home</Link></p>
