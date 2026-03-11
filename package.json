@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.0",
     "cbor-x": "^1.6.0",
     "dexie": "^4.0.1",
     "html5-qrcode": "^2.3.8",
