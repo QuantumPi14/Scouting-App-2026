@@ -2,6 +2,8 @@
 
 Offline‑first web app for FRC‑style scouting, built for use by many scouts across multiple events. It runs entirely in the browser (PWA) and stores data locally, with QR codes and JSON files for sharing between devices.
 
+https://github.com/user-attachments/assets/209d14b2-e348-4ba0-b352-108fbeb8f5e3
+
 ## Live app & Admin
 
 - **Admin password**: `Georgio`
